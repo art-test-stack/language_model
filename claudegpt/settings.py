@@ -15,6 +15,7 @@ CONTROL_TOKENS = [
 ]
 
 DATA_FOLDER = Path("data")
+MIN_DOCUMENT_SIZE = 0
 OUTPUT_FOLDER = Path("output")
 
 # ------------- TRAIN -------------

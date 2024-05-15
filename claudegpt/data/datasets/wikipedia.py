@@ -1,7 +1,3 @@
-from datasets import load_dataset
-
-wikipedia_dataset = load_dataset("wikipedia", "20220301.en")
-
 import re
 from datasets import load_dataset, DownloadConfig, concatenate_datasets
 from claudegpt.data.datasets.dataset import Dataset
@@ -19,35 +15,19 @@ class WikipediaDataset(Dataset):
 
 		print('Downloading Wikipedia dataset...')
 
-		wikipedia_fr = load_dataset(
-			path = 'eckendoerffer/wikipedia_fr',
+		wikipedia = load_dataset(
+			path = 'wikipedia',
+			name='20220301.en',
 			split = 'train+validation+test',
 			download_config = DownloadConfig(max_retries = 10)
 		)
 
-		wikipedia_fr = wikipedia_fr.map(
-			lambda doc: {'text': self._clean_wikipedia_fr(doc['text'])},
-			desc = 'Cleaning wikipedia_fr',
+		wikipedia = wikipedia.map(
+			lambda doc: {'text': self._clean_wikipedia(doc['text'])},
+			desc = 'Cleaning wikipedia',
 			num_proc = NUM_THREADS
 		)
 
-		roots_fr_wikipedia = load_dataset(
-			path = 'bigscience-data/roots_fr_wikipedia',
-			split = 'train',
-			download_config = DownloadConfig(max_retries = 10)
-		)
-
-		roots_fr_wikipedia = roots_fr_wikipedia.remove_columns('meta')
-
-		roots_fr_wikivoyage = load_dataset(
-			path = 'bigscience-data/roots_fr_wikivoyage',
-			split = 'train',
-			download_config = DownloadConfig(max_retries = 10)
-		)
-
-		roots_fr_wikivoyage = roots_fr_wikivoyage.remove_columns('meta')
-
-		self.dataset = concatenate_datasets([wikipedia_fr, roots_fr_wikipedia, roots_fr_wikivoyage])
 		self.dataset = self.dataset.filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
 		self.size['train'] = 0
 
@@ -57,7 +37,7 @@ class WikipediaDataset(Dataset):
 		print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.size["train"]:,} characters')
 
 
-	def _clean_wikipedia_fr(self, text: str) -> str:
+	def _clean_wikipedia(self, text: str) -> str:
 
 		text = text.replace(' ,', ',')
 		text = text.replace(' .', '.')
