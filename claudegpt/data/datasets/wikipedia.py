@@ -18,9 +18,8 @@ class WikipediaDataset(Dataset):
 		wikipedia = load_dataset(
 			path = 'wikipedia',
 			name='20220301.en',
-			split = 'train+validation+test',
 			download_config = DownloadConfig(max_retries = 10)
-		)
+		)["train"]
 
 		wikipedia = wikipedia.map(
 			lambda doc: {'text': self._clean_wikipedia(doc['text'])},
@@ -28,7 +27,7 @@ class WikipediaDataset(Dataset):
 			num_proc = NUM_THREADS
 		)
 
-		self.dataset = self.dataset.filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
+		self.dataset = self.dataset # .filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
 		self.size['train'] = 0
 
 		for doc in self.dataset:
