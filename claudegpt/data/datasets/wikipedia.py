@@ -1,7 +1,13 @@
-import re
-from datasets import load_dataset, DownloadConfig, concatenate_datasets
+
 from claudegpt.data.datasets.dataset import Dataset
 from claudegpt.settings import *
+
+import re
+import pickle 
+import numpy as np
+from tqdm import tqdm
+# from pathlib import Path
+from datasets import load_dataset, DownloadConfig, concatenate_datasets
 
 class WikipediaDataset(Dataset):
 
@@ -27,12 +33,13 @@ class WikipediaDataset(Dataset):
 			num_proc = NUM_THREADS
 		)
 
-		self.dataset = self.dataset # .filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
+		self.dataset = wikipedia.filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
 		self.size['train'] = 0
 
 		for doc in self.dataset:
 			self.size['train'] += len(str(doc['text']).strip())
 
+		# self.save_raw()
 		print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.size["train"]:,} characters')
 
 
@@ -56,3 +63,56 @@ class WikipediaDataset(Dataset):
 				start = not start
 
 		return ''.join(array)
+	
+
+	def save_raw(self) -> None:
+		if (DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'train.bin')).exists():
+			return
+		DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).mkdir(parents=True, exist_ok=True)
+
+		split_dataset = self.dataset.train_test_split(test_size = PRETRAINING_VAL_RATIO, shuffle = True)
+		split_dataset['val'] = split_dataset.pop('test')
+
+		for split, documents in split_dataset.items():
+
+			total = 0
+			ids = []
+
+			for doc in tqdm(documents, desc = f'Saving {self.name} {split} ids'):
+
+				ids.append({
+					'start': total,
+					'size': len(doc)
+				})
+
+				total += len(doc)
+
+			with open(DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'{split}_ids.pkl'), 'wb') as file:
+				pickle.dump(ids, file)
+
+			batch_size = 1_024
+
+			while batch_size >= len(documents):
+				batch_size //= 2
+
+			self.size[split] = int(np.sum(documents['size'], dtype = np.uint64))
+			path = DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'{split}.bin')
+			file = np.memmap(path, dtype = np.uint16, mode = 'w+', shape = (self.size[split],))
+			i = 0
+
+			for batch_i in tqdm(range(batch_size), desc = f'Saving {self.name} {split}'):
+
+				batch = documents.shard(num_shards = batch_size, index = batch_i, contiguous = True).with_format('numpy')
+				file_batch = np.concatenate(batch['tokens'])
+				file[i:i + len(file_batch)] = file_batch
+				i += len(file_batch)
+
+			file.flush()
+
+		with open(DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'metadata.pkl'), 'wb') as file:
+			pickle.dump({
+				'training_part': self.training_part,
+				'name': self.name,
+				'size': self.size,
+				'multiplier': self.multiplier
+			}, file)
