@@ -108,7 +108,6 @@ POSSIBLE_CHARS = AUTHORIZED_UNICODE | set(DECODE_STRING_EMOJIS.keys())
 
 
 def clean_ascii(char: str) -> str:
-
 	if char in AUTHORIZED_ASCII or char in CONTROL_REPLACE.keys():
 		return char
 
@@ -116,7 +115,6 @@ def clean_ascii(char: str) -> str:
 
 
 def clean_unicode(char: str) -> str:
-
 	if char in AUTHORIZED_UNICODE or char in DECODE_STRING_EMOJIS or char in CONTROL_REPLACE.keys():
 		return char
 
@@ -129,14 +127,12 @@ def clean_unicode(char: str) -> str:
 
 
 def clean_string(text: str, keep_control_tokens: bool = False) -> str:
-
 	if len(text) == 0:
 		return ''
 
 	text = text.replace('\r', '')
 
 	if keep_control_tokens:
-
 		safe_control_tokens = [regex.escape(c) for c in CONTROL_TOKENS]
 		reg = r'(' + r'|'.join(safe_control_tokens) + r''.join([f'[{i}]' for i in safe_control_tokens]) + r']+)'
 		parts = regex.split(reg, text, flags = regex.UNICODE, concurrent = False)
@@ -168,7 +164,6 @@ def clean_string(text: str, keep_control_tokens: bool = False) -> str:
 
 
 def unclean_string(text: str, keep_control_tokens: bool = False) -> str:
-
 	for key, value in DECODE_STRING_EMOJIS.items():
 		text = text.replace(key, value)
 

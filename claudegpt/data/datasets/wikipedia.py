@@ -66,10 +66,6 @@ class WikipediaDataset(Dataset):
 	
 
 	def save_raw(self) -> None:
-		if (DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'train.bin')).exists():
-			return
-		DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).mkdir(parents=True, exist_ok=True)
-
 		split_dataset = self.dataset.train_test_split(test_size = PRETRAINING_VAL_RATIO, shuffle = True)
 		split_dataset['val'] = split_dataset.pop('test')
 
@@ -95,7 +91,7 @@ class WikipediaDataset(Dataset):
 			while batch_size >= len(documents):
 				batch_size //= 2
 
-			self.size[split] = int(np.sum(documents['size'], dtype = np.uint64))
+			self.size[split] = int(np.sum(len(documents), dtype = np.uint64))
 			path = DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'{split}.bin')
 			file = np.memmap(path, dtype = np.uint16, mode = 'w+', shape = (self.size[split],))
 			i = 0
@@ -103,16 +99,9 @@ class WikipediaDataset(Dataset):
 			for batch_i in tqdm(range(batch_size), desc = f'Saving {self.name} {split}'):
 
 				batch = documents.shard(num_shards = batch_size, index = batch_i, contiguous = True).with_format('numpy')
-				file_batch = np.concatenate(batch['tokens'])
-				file[i:i + len(file_batch)] = file_batch
+				file_batch = batch
+				size_batch = len(file_batch["text"])
+				file[i:i + size_batch] = size_batch
 				i += len(file_batch)
 
 			file.flush()
-
-		with open(DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'metadata.pkl'), 'wb') as file:
-			pickle.dump({
-				'training_part': self.training_part,
-				'name': self.name,
-				'size': self.size,
-				'multiplier': self.multiplier
-			}, file)
