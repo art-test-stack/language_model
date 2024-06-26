@@ -1,4 +1,4 @@
-from claudegpt.settings import *
+from michelgpt.settings import *
 
 import regex
 from unidecode import unidecode
@@ -133,12 +133,12 @@ def clean_string(text: str, keep_control_tokens: bool = False) -> str:
 	text = text.replace('\r', '')
 
 	if keep_control_tokens:
-		safe_control_tokens = [regex.escape(c) for c in CONTROL_TOKENS]
+		safe_control_tokens = [regex.escape(c) for c in CONTROL_TOKENS_LIST]
 		reg = r'(' + r'|'.join(safe_control_tokens) + r''.join([f'[{i}]' for i in safe_control_tokens]) + r']+)'
 		parts = regex.split(reg, text, flags = regex.UNICODE, concurrent = False)
 		parts = list(filter(None, parts))
 
-		return ''.join([part if part in CONTROL_TOKENS else clean_string(part) for part in parts])
+		return ''.join([part if part in CONTROL_TOKENS_LIST else clean_string(part) for part in parts])
 
 	for key, value in REPLACE_UNICODE.items():
 		text = text.replace(key, value)

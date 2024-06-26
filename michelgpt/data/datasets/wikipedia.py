@@ -1,6 +1,6 @@
 
-from claudegpt.data.datasets.dataset import Dataset
-from claudegpt.settings import *
+from michelgpt.data.datasets.dataset import Dataset
+from michelgpt.settings import *
 
 import re
 import pickle 
@@ -39,7 +39,7 @@ class WikipediaDataset(Dataset):
 		for doc in self.dataset:
 			self.size['train'] += len(str(doc['text']).strip())
 
-		# self.save_raw()
+		self.save_raw()
 		print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.size["train"]:,} characters')
 
 
