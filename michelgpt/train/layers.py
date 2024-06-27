@@ -41,6 +41,7 @@ class Linear(nn.Linear):
     '''Linear layer'''
     def __init__(self, in_features: int, out_features: int, bias: bool = False, device=DEVICE, dtype=None) -> None:
         super().__init__(in_features, out_features, bias, device, dtype)
+        # Reparametrize weights and bias here
 
 
 class AttentionBlock(Module):
@@ -73,6 +74,7 @@ class MultiHeadAttention(Module):
 
         self.attention = AttentionBlock()
         self.dropout = nn.Dropout(DROPOUT)
+        self.layer_norm = nn.LayerNorm(DIM_MODEL)
 
     def forward(self, q, k, v, mask=None):
         batch_size = q.size(0)
@@ -82,32 +84,62 @@ class MultiHeadAttention(Module):
 
         q = self.w_q(q).view(batch_size, len_q, NUM_HEADS, DIM_KEY).transpose(1,2)
         k = self.w_k(k).view(batch_size, len_k, NUM_HEADS, DIM_KEY).transpose(1,2)
-        v = self.w_v(v).view(batch_size, len_v, NUM_HEADS, DIM_KEY).transpose(1,2)
+        v = self.w_v(v).view(batch_size, len_v, NUM_HEADS, DIM_VALUE).transpose(1,2)
 
-        v, attention = self.attention(q, k, v)
-        v = v.transpose(1, 2).view(batch_size, len_v, -1)
-        
+        if mask is not None:
+            mask = mask.unsqueeze(1)  
 
-class PositionWiseFFN(Module):
-    def __init__(self) -> None:
+        v, attention = self.attention(q, k, v, mask=mask)
+        v = self.dropout(v.transpose(1, 2).view(batch_size, len_v, -1)) 
+        v += res
+
+        out = self.layer_norm(v)
+        return out, attention
+
+class FeedForwardNet(Module):
+    '''Position-Wise Feed Forward Network'''
+    def __init__(self, d_in = DIM_MODEL, d_latent = DIM_MODEL // 2, dropout = DROPOUT) -> None:
         super().__init__()
+        self.layer_1 = Linear(d_in, d_latent, dropout)
+        self.activation = nn.ReLU()
+        self.layer_2 = Linear(d_latent, d_in, dropout)
+        self.dropout = nn.Dropout(DROPOUT)
+        self.layer_norm = nn.LayerNorm(d_in, eps=1e-6)
+    
+    def forward(self, x):
+        res = x
+        x = self.dropout(self.layer_2(self.activation(self.layer_1(x)))) 
+        x += res
+        out = self.layer_norm(x)
+        return out
+    
 
-        
 class EncoderLayer(Module):
     '''Encoder layer'''
     def __init__(self) -> None:
         super().__init__()
+        self.self_attention = MultiHeadAttention()
+        self.ffn = FeedForwardNet(d_in=DIM_MODEL, d_out=DIM_MODEL // 2)
 
-    def forward(self, x):
-        pass
+    def forward(self, x, self_attention_mask=None):
+        x, encoder_self_attention = self.self_attention(x, x, x, mask=self_attention_mask)
+        out = self.ffn(x)
+        return out, encoder_self_attention
 
 
 class DecoderLayer(Module):
     '''Decoder layer'''
     def __init__(self) -> None:
         super().__init__()
+        self.self_attention = MultiHeadAttention()
+        self.encoder_attention = MultiHeadAttention()
+        self.ffn = FeedForwardNet()
 
-    def forward(self, x):
-        pass
+    def forward(self, dec_in, enc_out, self_attention_mask=None, ae_attention_mask=None):
+        dec_out, decoder_self_attention = self.self_attention(dec_in, dec_in, dec_in, mask=self_attention_mask)
+        dec_out, ae_attention = self.encoder_attention(dec_in, enc_out, enc_out, mask=ae_attention_mask)
+        dec_out = self.ffn(dec_out)
+
+        return dec_out, ae_attention, decoder_self_attention
 
 
