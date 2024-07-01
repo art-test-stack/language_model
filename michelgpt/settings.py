@@ -92,7 +92,7 @@ DROPOUT = .1
 
 MASK_VALUE = -1e9
 LINEAR_BIAS = False
-FLASH_ATTENTION = False
+FLASH_ATTENTION = False # TODO: Not implemented
 
 # ------------- TRAIN -------------
 
