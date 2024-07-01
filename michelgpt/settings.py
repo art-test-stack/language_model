@@ -4,6 +4,9 @@ from pathlib import Path
 # ----------- PROCESSOR -----------
 CUDA_AVAILABLE = torch.cuda.is_available()
 MPS_AVAILABLE = torch.backends.mps.is_available()
+if MPS_AVAILABLE:
+    torch.mps.empty_cache()
+    torch.mps.set_per_process_memory_fraction(0.)
 DEVICE_NAME = "cuda" if CUDA_AVAILABLE else "mps" if MPS_AVAILABLE else "cpu"
 DEVICE = torch.device(DEVICE_NAME)
 
@@ -73,21 +76,17 @@ MAX_TOKEN_LENGTH = 16
 
 # ------------- MODEL -------------
 
-VOCAB_SIZE = 32_000
-MAX_CONTEXT = 512
-WINDOW_SIZE = 256
+VOCAB_SIZE = 32 # 32_000
+MAX_CONTEXT = 64
 
-NUM_HEADS = 8
-NUM_BLOCKS = 16
-NUM_LAYERS = 6
+NUM_HEADS = 2
+NUM_LAYERS = 2
 
-DIM_EMBEDDING = 1024
-DIM_MODEL = 1024
+DIM_MODEL = 128
+DIM_FFN = 4 * DIM_MODEL
 
 DIM_KEY = DIM_MODEL // NUM_HEADS
 DIM_VALUE = DIM_MODEL // NUM_HEADS
-
-DIM_FFN = 2048
 
 DROPOUT = .1
 
@@ -97,5 +96,6 @@ FLASH_ATTENTION = False
 
 # ------------- TRAIN -------------
 
+BATCH_SIZE = 128
 NUM_THREADS = 16
 PRETRAINING_VAL_RATIO = 1e-3

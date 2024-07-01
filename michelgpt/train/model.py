@@ -9,19 +9,20 @@ class Encoder(Module):
     def __init__(
             self, d_src_vocab, dim_model: int = DIM_MODEL, n_layers: int = NUM_LAYERS, 
             n_heads: int = NUM_HEADS, d_key: int = DIM_KEY, d_value: int = DIM_VALUE, 
-            dropout: float = DROPOUT, padding_idx: int = 0
+            dropout: float = DROPOUT, padding_idx: int = 0, max_content: int = MAX_CONTEXT 
             ) -> None:
         super().__init__()
+        # TODO: Will change to customed embedding
         self.embedding = nn.Embedding(
             num_embeddings=d_src_vocab, embedding_dim=dim_model, padding_idx=padding_idx)
-        self.pos_enc = PositionalEncoding() # TODO
+        self.pos_enc = PositionalEncoding(dim_model, max_content)
         self.layers = nn.ModuleList([
             EncoderLayer(
                 dim_model=dim_model, n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout) 
             for _ in range(n_layers)]
         )
 
-    def forward(self, src, src_mask, return_attention=False):
+    def forward(self, src, src_mask=None, return_attention=False):
         
         attention_list = []
 
@@ -30,7 +31,7 @@ class Encoder(Module):
         for layer in self.layers:
             out, attention = layer(out, self_attention_mask=src_mask)
             attention_list.append(attention) if return_attention else None
-        
+    
         return (out, attention) if return_attention else (out,)
 
 
@@ -38,21 +39,20 @@ class Decoder(Module):
     def __init__(
             self, d_tgt_vocab, dim_model: int = DIM_MODEL, n_layers: int = NUM_LAYERS, 
             n_heads: int = NUM_HEADS, d_key: int = DIM_KEY, d_value: int = DIM_VALUE, 
-            dropout: float = DROPOUT, padding_idx: int = 0
+            dropout: float = DROPOUT, padding_idx: int = 0, max_content: int = MAX_CONTEXT
         ) -> None:
         super().__init__()
         # TODO: Will change to customed embedding
         self.embedding = nn.Embedding(
-            num_embeddings=d_tgt_vocab, embedding_dim=dim_model, padding_idx=padding_idx
-        )
-        self.pos_enc = PositionalEncoding() # TODO
+            num_embeddings=d_tgt_vocab, embedding_dim=dim_model, padding_idx=padding_idx)
+        self.pos_enc = PositionalEncoding(dim_model, max_content)
         self.layers = nn.ModuleList([
             DecoderLayer(
                 dim_model=dim_model, n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout)
             for _ in range(n_layers)]
         )
     
-    def forward(self, seq, enc_output, src_mask, tgt_mask, return_attentions=False):
+    def forward(self, seq, enc_output, src_mask=None, tgt_mask=None, return_attentions=False):
         self_attn_list, enc_dec_attn_list = [], []
         
         dec = self.embedding(seq)
@@ -71,9 +71,9 @@ class Decoder(Module):
 
 
 class PositionalEncoding(Module):
-    def __init__(self, d_model: int = DIM_MODEL, n_pos: int = MAX_CONTEXT) -> None:
+    def __init__(self, dim_model: int = DIM_MODEL, n_pos: int = MAX_CONTEXT) -> None:
         super().__init__()
-        self.register_buffer('table', self._get_sinusoid_encoding_table(d_model, n_pos))
+        self.register_buffer('table', self._get_sinusoid_encoding_table(dim_model, n_pos))
     
     def _get_sinusoid_encoding_table(self, d_model: int = DIM_MODEL, n_pos: int = MAX_CONTEXT):
         ''' Sinusoid position encoding table '''
@@ -96,10 +96,34 @@ class PositionalEncoding(Module):
         plt.show()
 
     def forward(self, x):
-        return x + self.table[:, :x.size(1)]
+        return x + self.table[:,:x.size(2)]
 
 
 class Transformer(Module):
-    def __init__(self) -> None:
+    def __init__(
+            self, d_src_vocab, d_tgt_vocab, dim_model: int = DIM_MODEL, n_layers: int = NUM_LAYERS, 
+            n_heads: int = NUM_HEADS, d_key: int = DIM_KEY, d_value: int = DIM_VALUE, 
+            dropout: float = DROPOUT, src_padding_idx: int = 0, tgt_padding_idx: int = 0, max_content: int = MAX_CONTEXT
+            ) -> None:
         super().__init__()
-        # TODO
+        
+        self.encoder = Encoder(d_src_vocab=d_src_vocab, dim_model=dim_model, n_layers=n_layers, 
+            n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout, padding_idx=src_padding_idx, max_content=max_content)
+        
+        self.decoder = Decoder(d_tgt_vocab=d_tgt_vocab, dim_model=dim_model, n_layers=n_layers, 
+            n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout, padding_idx=tgt_padding_idx, max_content=max_content)
+        
+        self.linear = Linear(dim_model, d_tgt_vocab, bias=False)
+        self.softmax = nn.Softmax(dim=1)
+
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p) 
+
+    def forward(self, src_seq, tgt_seq):
+        # TODO: masks
+
+        enc_out, *_ = self.encoder(src_seq)
+        dec_out, *_ = self.decoder(seq=tgt_seq, enc_output=enc_out)
+
+        return self.softmax(self.linear(dec_out))

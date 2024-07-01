@@ -95,9 +95,9 @@ class MultiHeadAttention(Module):
 
         if mask is not None:
             mask = mask.unsqueeze(1)  
-
+        
         v, attention = self.attention(q, k, v, mask=mask)
-        v = self.dropout(v.transpose(1, 2).view(batch_size, len_v, -1)) 
+        v = self.dropout(v.transpose(1, 2).contiguous().view(batch_size, len_v, -1)) 
         v += res
 
         out = self.layer_norm(v)
@@ -131,7 +131,7 @@ class EncoderLayer(Module):
         super().__init__()
         self.self_attention = MultiHeadAttention(
             dim_model=dim_model, n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout)
-        self.ffn = FeedForwardNet(d_in=dim_model, d_out=DIM_MODEL // 2)
+        self.ffn = FeedForwardNet(d_in=dim_model, d_latent=DIM_MODEL // 2)
 
     def forward(self, x, self_attention_mask=None):
         x, enc_attention = self.self_attention(x, x, x, mask=self_attention_mask)
@@ -150,7 +150,7 @@ class DecoderLayer(Module):
             dim_model=dim_model, n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout)
         self.enc_attention = MultiHeadAttention(
             dim_model=dim_model, n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout)
-        self.ffn = FeedForwardNet(d_in=dim_model, d_out=DIM_MODEL // 2)
+        self.ffn = FeedForwardNet(d_in=dim_model, d_latent=DIM_MODEL // 2)
 
     def forward(self, dec_in, enc_out, self_attention_mask=None, enc_dec_attention_mask=None):
         dec_out, dec_attention = self.self_attention(dec_in, dec_in, dec_in, mask=self_attention_mask)
