@@ -1,5 +1,7 @@
 from michelgpt.settings import *
 from michelgpt.train.layers import *
+
+import matplotlib.pyplot as plt
 import torch.nn as nn
 
 
@@ -69,9 +71,32 @@ class Decoder(Module):
 
 
 class PositionalEncoding(Module):
-    def __init__(self) -> None:
+    def __init__(self, d_model: int = DIM_MODEL, n_pos: int = MAX_CONTEXT) -> None:
         super().__init__()
-        # TODO
+        self.register_buffer('table', self._get_sinusoid_encoding_table(d_model, n_pos))
+    
+    def _get_sinusoid_encoding_table(self, d_model: int = DIM_MODEL, n_pos: int = MAX_CONTEXT):
+        ''' Sinusoid position encoding table '''
+        pos = torch.arange(n_pos, dtype=torch.float32)
+        i = torch.arange(d_model)
+
+        pos_enc = torch.ger(pos, 1e4 ** (- 2 * (i//2) / d_model))
+
+        pos_enc[:, 0::2] = torch.sin(pos_enc[:, 0::2])
+        pos_enc[:, 1::2] = torch.cos(pos_enc[:, 1::2]) 
+        return pos_enc
+    
+    def plot_table(self):
+        pos_enc_np = self.table.cpu().numpy()
+        plt.imshow(pos_enc_np, cmap='viridis', vmin=-1, vmax=1)
+        plt.colorbar()
+        plt.xlabel("Embedding index")
+        plt.ylabel("Sequence index")
+        plt.title('Sinusoidal Positional Encoding Table')
+        plt.show()
+
+    def forward(self, x):
+        return x + self.table[:, :x.size(1)]
 
 
 class Transformer(Module):
