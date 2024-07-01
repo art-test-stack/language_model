@@ -37,10 +37,15 @@ class Module(nn.Module):
         nn.utils.clip_grad_norm_(self.parameters(), max_norm)
 
 
-class Linear(nn.Linear):
+# class Linear(nn.Linear):
+#     def __init__(self, in_features: int, out_features: int, bias: bool = False, device=DEVICE) -> None:
+#         super().__init__(in_features, out_features, bias, device)
+
+
+class Linear(nn.Linear, Module):
     '''Linear layer'''
-    def __init__(self, in_features: int, out_features: int, bias: bool = False, device=DEVICE, dtype=None) -> None:
-        super().__init__(in_features, out_features, bias, device, dtype)
+    def __init__(self, in_features: int, out_features: int, bias: bool = False, device: torch.device = DEVICE, dtype=None) -> None:
+        super(Linear, self).__init__(in_features=in_features, out_features=out_features, bias=bias, device=device)
         # TODO: Reparametrize weights and bias here
 
 
