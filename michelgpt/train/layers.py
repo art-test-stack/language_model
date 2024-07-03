@@ -159,7 +159,7 @@ class DecoderLayer(Module):
 
     def forward(self, dec_in, enc_out, self_attention_mask=None, enc_dec_attention_mask=None):
         dec_out, dec_attention = self.self_attention(dec_in, dec_in, dec_in, mask=self_attention_mask)
-        dec_out, enc_dec_attention = self.enc_attention(dec_in, enc_out, enc_out, mask=enc_dec_attention_mask)
+        dec_out, enc_dec_attention = self.enc_attention(dec_out, enc_out, enc_out, mask=enc_dec_attention_mask)
         dec_out = self.ffn(dec_out)
 
         return dec_out, dec_attention, enc_dec_attention

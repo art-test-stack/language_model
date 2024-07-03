@@ -106,7 +106,9 @@ class Transformer(Module):
             dropout: float = DROPOUT, src_padding_idx: int = 0, tgt_padding_idx: int = 0, max_content: int = MAX_CONTEXT
             ) -> None:
         super().__init__()
-        
+
+        self.src_pad_idx, self.tgt_pad_idx = src_padding_idx, tgt_padding_idx
+
         self.encoder = Encoder(d_src_vocab=d_src_vocab, dim_model=dim_model, n_layers=n_layers, 
             n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout, padding_idx=src_padding_idx, max_content=max_content)
         
@@ -114,16 +116,31 @@ class Transformer(Module):
             n_heads=n_heads, d_key=d_key, d_value=d_value, dropout=dropout, padding_idx=tgt_padding_idx, max_content=max_content)
         
         self.linear = Linear(dim_model, d_tgt_vocab, bias=False)
-        self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=-1)
 
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p) 
 
     def forward(self, src_seq, tgt_seq):
-        # TODO: masks
+        src_mask = self.get_pad_mask(src_seq, "src")
+        tgt_mask = self.get_pad_mask(tgt_seq, "tgt")
 
-        enc_out, *_ = self.encoder(src_seq)
-        dec_out, *_ = self.decoder(seq=tgt_seq, enc_output=enc_out)
+        enc_out, *_ = self.encoder(src_seq, src_mask=src_mask)
+        dec_out, *_ = self.decoder(seq=tgt_seq, enc_output=enc_out, src_mask=src_mask, tgt_mask=tgt_mask)
 
         return self.softmax(self.linear(dec_out))
+    
+    def get_pad_mask(self, seq, mode: str = "src"):
+        assert mode == "src" or mode == "tgt"
+
+        pad_idx = self.src_pad_idx if mode == "src" else self.tgt_pad_idx
+        pad_mask = (seq != pad_idx).unsqueeze(-2)
+
+        if mode == "src":
+            return pad_mask
+        else:
+            _, len_s = seq.size()
+            subsequent_mask = (1 - torch.triu(
+                torch.ones((1, len_s, len_s), device=seq.device), diagonal=1)).bool()
+            return pad_mask & subsequent_mask
