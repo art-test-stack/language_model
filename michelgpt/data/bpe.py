@@ -8,6 +8,7 @@ from typing import List, Dict
 
 class BPETokenizer:
     def __init__(self, control_tokens: Dict[str, str] = CONTROL_TOKENS_DICT, vocab_size: int = VOCAB_SIZE) -> None:
+        print("WARNING: Do not use that tokenizer. It is not optimized such as hugging face tokenizers")
         self.vocab = {}
         self.vocab_size_tgt = vocab_size
 
@@ -17,12 +18,12 @@ class BPETokenizer:
         self.control_tokens = control_tokens
         self.merges = [ (tok, '</w>') for tok in control_tokens.values()]
         
-    def preprocess_text(self, text):
+    def preprocess_text(self, text) -> List[str]:
         text = text.lower()
         words = re.findall(r'⮜[^⮜⮞]+⮞|\w+|\s|[^\w\s]', text)
         return words
 
-    def preprocess_dataset(self, dataset):
+    def preprocess_dataset(self, dataset) -> List[str]:
         words = []
         for _, set in enumerate(tqdm(dataset, "Preprocess dataset")):
             words += self.preprocess_text(set['text'])
@@ -64,9 +65,9 @@ class BPETokenizer:
                     self.token_to_id[token] = len(self.token_to_id)
 
     def create_vocab(self, text):
+        # TODO: optimization
         print("Start creating vocab...")
         vocab = self.get_vocab(text)
-        # merges = []
         pbar = tqdm(total = self.vocab_size_tgt)
         
         while self.get_vocabulary_size(vocab) < self.vocab_size_tgt:
@@ -82,7 +83,6 @@ class BPETokenizer:
         self.create_token_to_id(vocab)
         return vocab, self.merges
 
-    # Encoding text using BPE merges and token_to_id
     def encode(self, text):
         text = ' '.join(list(text)) + ' </w>'
         for (a, b) in self.merges:
@@ -92,7 +92,6 @@ class BPETokenizer:
         tokens = text.split()
         return [self.token_to_id[token] if token in self.token_to_id.keys() else self.token_to_id[self.control_tokens['unknown_token']] for token in tokens]
 
-    # Decoding BPE encoded ids back to text
     def decode(self, ids):
         id_to_token = {v: k for k, v in self.token_to_id.items()}
         tokens = [id_to_token[id] if id in id_to_token.keys() else id_to_token[self.token_to_id[self.control_tokens['unknown_token']]] for id in ids]
