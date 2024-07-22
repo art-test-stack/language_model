@@ -15,17 +15,9 @@ class Decoder(Module):
             n_heads: int = NUM_HEADS,
             d_head: int = DIM_HEAD,
             dropout: float = DROPOUT,
-            padding_idx: int = 0,
-            max_content: int = MAX_CONTEXT
+            padding_idx: int = 0
         ) -> None:
         super().__init__()
-        # TODO: Will change to customed embedding
-        self.embedding = nn.Embedding(
-            num_embeddings=vocab_size, 
-            embedding_dim=dim_model, 
-            padding_idx=padding_idx
-        )
-        self.pos_enc = PositionalEncoding(dim_model, max_content)
         self.layers = nn.ModuleList([
             DecoderLayer(
                 dim_model=dim_model, 
@@ -45,8 +37,6 @@ class Decoder(Module):
         ):
         self_attn_list = []
         
-        x = self.embedding(x)
-        output = self.pos_enc(x)
         for layer in self.layers: 
             output, self_attention = layer(x=output, self_attention_mask=mask)
             if return_attentions:
@@ -58,7 +48,7 @@ class Decoder(Module):
         return output,
 
 
-class Transformer(Module):
+class MichelTransformer(Module):
     def __init__(
             self,
             vocab_size: int = VOCAB_SIZE,
@@ -73,8 +63,16 @@ class Transformer(Module):
         super().__init__()
 
         self.vocab_size = vocab_size
+        self.padding_idx = padding_idx
+        # TODO: Will change to customed embedding
+        self.embedding = nn.Embedding(
+            num_embeddings=vocab_size, 
+            embedding_dim=dim_model, 
+            padding_idx=padding_idx
+        )
+        self.pos_enc = PositionalEncoding(dim_model, max_content)
 
-        self.decoder = Decoder(
+        self.decoder_stack = Decoder(
             vocab_size=vocab_size,
             dim_model=dim_model,
             n_layers=n_layers,
@@ -85,23 +83,26 @@ class Transformer(Module):
             max_content=max_content
         )
         
-        self.linear = Linear(dim_model, vocab_size, bias=False)
+        self.model_head = Linear(dim_model, vocab_size, bias=False)
         self.softmax = nn.Softmax(dim=-1)
 
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p) 
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         mask = self.get_pad_mask(x)
 
-        dec_out, *_ = self.decoder(x=x, mask=mask)
+        x = self.embedding(x)
+        x = self.pos_enc(x)
 
-        return self.softmax(self.linear(dec_out))
+        output, *_ = self.decoder_stack(x=x, mask=mask)
+
+        return self.model_head(output)
     
-    def get_pad_mask(self, seq):
+    def get_pad_mask(self, seq: torch.Tensor):
 
-        pad_idx = self.src_pad_idx
+        pad_idx = self.padding_idx
         pad_mask = (seq != pad_idx).unsqueeze(-2)
 
         _, len_s = seq.size()

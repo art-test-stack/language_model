@@ -5,7 +5,6 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn as nn
-from torch.nn import functional as F
 
 
 class Linear(nn.Linear, Module):
@@ -23,7 +22,11 @@ class Linear(nn.Linear, Module):
 
 
 class PositionalEncoding(Module):
-    def __init__(self, dim_model: int = DIM_MODEL, n_pos: int = MAX_CONTEXT) -> None:
+    def __init__(
+            self,
+            dim_model: int = DIM_MODEL,
+            n_pos: int = MAX_CONTEXT
+        ) -> None:
         super().__init__()
         self.register_buffer('table', self._get_sinusoid_encoding_table(dim_model, n_pos))
     
@@ -84,8 +87,7 @@ class MultiHeadAttention(Module):
             self, 
             dim_model: int = DIM_MODEL, 
             n_heads: int = NUM_HEADS, 
-            d_head: int = DIM_HEAD, 
-            dropout: float = DROPOUT
+            d_head: int = DIM_HEAD
         ) -> None:
         super().__init__()
         assert(dim_model == d_head * n_heads, "Dimensions are not correct")
@@ -97,8 +99,6 @@ class MultiHeadAttention(Module):
         self.w_v = Linear(dim_model, d_head * n_heads, bias=False)
 
         self.attention = AttentionBlock()
-        self.dropout = nn.Dropout(dropout)
-        self.layer_norm = nn.LayerNorm(dim_model)
 
     def forward(self, x: torch.Tensor, mask=None):
         n_heads = self.n_heads
@@ -106,8 +106,6 @@ class MultiHeadAttention(Module):
 
         batch_size = x.size(0)
         len_x = x.size(1)
-
-        residual = x
 
         q = self.w_q(x)
         k = self.w_k(x)
@@ -121,17 +119,11 @@ class MultiHeadAttention(Module):
             mask = mask.unsqueeze(1)  
         
         output, attention = self.attention(q, k, v, mask=mask)
-
-        if self.training:
-            output = self.dropout(v.transpose(1, 2).contiguous().view(batch_size, d_head, -1)) 
-
-        output += residual
-
-        output = self.layer_norm(v)
+        output = output.transpose(1, 2).contiguous().view(batch_size, d_head, -1)
         return output, attention
 
 
-class FeedForwardNet(Module):
+class FeedForward(Module):
     '''Position-Wise Feed Forward Network'''
     def __init__(
             self, 
@@ -147,14 +139,14 @@ class FeedForwardNet(Module):
         self.layer_norm = nn.LayerNorm(d_in, eps=1e-6)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        res = self.layer_2(self.activation(self.layer_1(x)))
+        output = self.layer_2(self.activation(self.layer_1(x)))
 
         if self.training:
-            res = self.dropout(res)
+            output = self.dropout(output)
             
-        res = res + x
-        out = self.layer_norm(res)
-        return out
+        output += x
+        output = self.layer_norm(output)
+        return output
     
 
 class DecoderLayer(Module):
@@ -169,16 +161,25 @@ class DecoderLayer(Module):
         ) -> None:
         super().__init__()
         self.self_attention = MultiHeadAttention(
-            dim_model=dim_model, n_heads=n_heads, d_head=d_head, dropout=dropout)
+            dim_model=dim_model, n_heads=n_heads, d_head=d_head
+        )
         
-        self.ffn = FeedForwardNet(d_in=dim_model, d_latent=dim_ffn)
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(dim_model)
+        
+        self.ffn = FeedForward(d_in=dim_model, d_latent=dim_ffn)
 
     def forward(self, x, self_attention_mask=None,):
         
-        dec_out, dec_attention = self.self_attention(x, mask=self_attention_mask)
+        output, self_attention = self.self_attention(x, mask=self_attention_mask)
 
-        dec_out = self.ffn(dec_out)
+        if self.training:
+            output = self.dropout(output) 
 
-        return dec_out, dec_attention
+        output += x
+        output = self.layer_norm(output)
+        output = self.ffn(output)
+
+        return output, self_attention
 
 
