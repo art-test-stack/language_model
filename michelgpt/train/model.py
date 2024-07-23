@@ -14,8 +14,7 @@ class Decoder(Module):
             n_layers: int = NUM_LAYERS, 
             n_heads: int = NUM_HEADS,
             d_head: int = DIM_HEAD,
-            dropout: float = DROPOUT,
-            padding_idx: int = 0
+            dropout: float = DROPOUT
         ) -> None:
         super().__init__()
         self.layers = nn.ModuleList([
@@ -78,13 +77,10 @@ class MichelTransformer(Module):
             n_layers=n_layers,
             n_heads=n_heads,
             d_head=d_head,
-            dropout=dropout, 
-            padding_idx=padding_idx, 
-            max_content=max_content
+            dropout=dropout
         )
         
         self.model_head = Linear(dim_model, vocab_size, bias=False)
-        self.softmax = nn.Softmax(dim=-1)
 
         for p in self.parameters():
             if p.dim() > 1:
