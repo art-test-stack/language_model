@@ -1,5 +1,6 @@
 /data/*
 !/data/README.md
+!/data/drive
 /output/*
 !/output/README.md
 # Byte-compiled / optimized / DLL files
