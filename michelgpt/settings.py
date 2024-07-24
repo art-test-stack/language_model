@@ -77,7 +77,7 @@ MAX_TOKEN_LENGTH = 16
 
 # ------------- DRIVE -------------
 
-TRAIN_LOCAL = False
+SAVE_ON_DRIVE = True
 DRIVE_FILE = ""
 
 # ------------- MODEL -------------

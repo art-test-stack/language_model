@@ -1,3 +1,5 @@
+from michelgpt.train.model import MichelTransformer
+
 from michelgpt.data.datasets.dataset import Dataset
 from michelgpt.data.tokenizer import Tokenizer
 
@@ -7,15 +9,27 @@ import torch
 from torch import nn, optim
 
 import numpy as np
+import time, pickle
 from typing import List
-import random
+from pathlib import Path
 
 
-class Trainer:
+class Trainer():
 
-    def __init__(self, model, tokenizer: Tokenizer, optimizer=None):
+    def __init__(self, model: MichelTransformer, tokenizer: Tokenizer, optimizer=None):
         super().__init__()
+
+        self.time = .0
+        self.step = 0
+        self.tokens = 0
         self.model = model
+        self.epochs = 0
+        self.loss = float('inf')
+        self.accuracy = .0
+        self.val_loss = .0
+        self.val_accuracy = .0
+        self.best_val_loss = float('inf')
+
         if optimizer is None:
             self.optimizer = optim.Adam(model.parameters(), lr=1e-4)
         else:
@@ -25,6 +39,69 @@ class Trainer:
         self.max_sequence_length = self.model.max_content
         self.softmax = nn.Softmax(dim=-1)
         self.loss_function = nn.CrossEntropyLoss()
+
+        self.metrics = {
+            "time": [],
+            "step": [],
+            "tokens": [],
+            "epochs": [],
+            "accuracy": [],
+            "loss": [],
+            "val_accuracy": [],
+            "val_loss": [],
+            "best_val_loss": []
+        }
+
+    def save_metrics(self) -> None:
+
+        self.metrics['time'].append(time.time() - self.time)
+        self.metrics["step"].append(self.step)
+        self.metrics["tokens"].append(self.tokens)
+        self.metrics["epochs"].append(self.epochs)
+        self.metrics["accuracy"].append(self.accuracy)
+        self.metrics["loss"].append(self.loss)
+        self.metrics["val_accuracy"].append(self.val_accuracy)
+        self.metrics["val_loss"].append(self.val_loss)
+        self.metrics["best_val_loss"].append(self.best_val_loss)
+
+        if not OUTPUT_FOLDER.exists():
+            OUTPUT_FOLDER.mkdir()
+
+        pickle.dump(self.metrics, open(OUTPUT_FOLDER.joinpath('metrics.pkl'), 'wb'))
+        self.time = time.time()
+
+
+
+    def load_metrics(self, path: Path) -> None:
+        if not path.exists():
+            return
+        
+        self.metrics_history = pickle.load(open(OUTPUT_FOLDER.joinpath('metrics.pkl'), 'rb'))
+        self.step = self.metrics["step"][-1]
+        self.metrics = self.metrics["tokens"][-1]
+        self.epochs = self.metrics["epochs"][-1]
+        self.accuracy = self.metrics["accuracy"][-1]
+        self.loss = self.metrics["loss"][-1]
+        self.val_accuracy = self.metrics["val_accuracy"][-1]
+        self.val_loss = self.metrics["val_loss"][-1]
+        self.best_val_loss = np.min(self.metrics["val_loss"])
+
+
+    def save_model(self, path: Path) -> None:
+        if not path.exists():
+            path.mkdir()
+        torch.save(self.model.state_dict(), path.joinpath("model.pt"))
+        torch.save(self.optimizer.state_dict(), path.joinpath("optimizer.pt"))
+
+        if SAVE_ON_DRIVE:
+            pass
+
+    def load_model(self, path: Path) -> None:
+        if not path.exists():
+            return
+        
+        self.model.load_state_dict(torch.load(path.joinpath("model.pt"), map_location=DEVICE))
+        self.optimizer.load_state_dict(torch.load(path.joinpath("optimizer.pt"), map_location=DEVICE))
 
 
     def next_token_probabilities(self, x, mask, temperature=1.0):
@@ -36,7 +113,7 @@ class Trainer:
         probabilities = self.softmax(logits)
         return probabilities
     
-    
+
     def forward(self, x, mask):
         """
         Autoregressive forward pass
@@ -51,48 +128,3 @@ class Trainer:
     def find_previous_session(self):
         pass
 
-    def train(self, train_set: Dataset, test_set: Dataset, epochs: int, batch_size: int):
-        loss_per_epoch = []
-        for epoch in range(epochs):
-            losses = []
-
-            batches = []
-            for _, batch in enumerate(train_set):
-                sequence_tensor = torch.tensor(data[i: i + batch_size], dtype=torch.long)
-
-                mask = torch.ones_like(sequence_tensor)
-                mask[sequence_tensor == self.tokenizer.character_to_token('<pad>')] = 0
-
-                batches.append((sequence_tensor, mask))
-
-            for batch in batches:
-                self.model.train()
-
-                input_tensor = torch.zeros((batch_size, self.model.max_sequence_length + 1), dtype=torch.long)
-                mask = torch.zeros((batch_size, self.model.max_sequence_length + 1), dtype=torch.long)
-
-                for i, input_entry in enumerate(batch[0]):
-                    input_tensor[i] = input_entry
-
-                for i, mask_entry in enumerate(batch[1]):
-                    mask[i] = mask_entry
-
-                model_output, target = self(x=input_tensor, mask=mask)
-
-                loss = self.loss_function(model_output.transpose(1, 2), target)
-
-                loss.backward()
-
-                nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
-
-                self.optimizer.step()
-
-                self.optimizer.zero_grad()
-
-                losses.append(loss.item())
-
-            epoch_loss = np.average(losses)
-            loss_per_epoch.append(epoch_loss)
-            print('Epoch:', epoch, 'Loss:', epoch_loss)
-
-        return loss_per_epoch
