@@ -35,16 +35,15 @@ class Decoder(Module):
             return_attentions=False
         ):
         self_attn_list = []
-        
         for layer in self.layers: 
-            output, self_attention = layer(x=output, self_attention_mask=mask)
+            x, self_attention = layer(x=x, self_attention_mask=mask)
             if return_attentions:
                 self_attn_list.append(self_attention) 
 
         if return_attentions:
-            return output, self_attn_list
+            return x, self_attn_list
         
-        return output,
+        return x,
 
 
 class MichelTransformer(Module):
@@ -58,11 +57,12 @@ class MichelTransformer(Module):
             dropout: float = DROPOUT,
             padding_idx: int = 0,
             max_content: int = MAX_CONTEXT
-            ) -> None:
+        ) -> None:
         super().__init__()
 
         self.vocab_size = vocab_size
         self.padding_idx = padding_idx
+        self.max_content = max_content
         # TODO: Will change to customed embedding
         self.embedding = nn.Embedding(
             num_embeddings=vocab_size, 
