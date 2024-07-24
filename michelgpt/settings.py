@@ -70,9 +70,15 @@ FORCED_TOKENS = ["AI"]
 DATA_FOLDER = Path("data")
 MIN_DOCUMENT_SIZE = 0
 OUTPUT_FOLDER = Path("output")
+MODEL_FOLDER = Path("")
 VOCAB_SIZE = 32_000
 VOCAB_FILE = DATA_FOLDER.joinpath("vocab.json")
 MAX_TOKEN_LENGTH = 16
+
+# ------------- DRIVE -------------
+
+TRAIN_LOCAL = False
+DRIVE_FILE = ""
 
 # ------------- MODEL -------------
 
@@ -100,3 +106,16 @@ FLASH_ATTENTION = False # TODO: Not implemented
 BATCH_SIZE = 128
 NUM_THREADS = 16
 PRETRAINING_VAL_RATIO = 1e-3
+
+MAX_LEARNING_RATE = 6e-4
+MIN_LEARNING_RATE = 6e-5
+WARMUP_STEPS = 2_000
+
+WEIGHT_DECAY = .1
+DECAY_STEPS = 100_000
+
+BETA_1 = .9
+BETA_2 = .95
+
+EPSILON = 1e-8
+

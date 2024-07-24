@@ -8,7 +8,7 @@ class AdamW(optim.AdamW):
     def __init__(
             self,
             params: Iterable[Tensor] | Iterable[Dict[str, Any]],
-            lr: float | Tensor = LEARNING_RATE,
+            lr: float | Tensor = MAX_LEARNING_RATE,
             eps: float = EPSILON,
             weight_decay: float = WEIGHT_DECAY,
             fused: bool | None = None
@@ -17,6 +17,7 @@ class AdamW(optim.AdamW):
             params,
             lr=lr,
             betas=(BETA_1, BETA_2),
+            weight_decay=weight_decay,
             eps=eps,
             fused=fused
         )
