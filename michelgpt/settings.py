@@ -51,7 +51,6 @@ CONTROL_TOKENS_LIST = [
     '⮜assistant⮞', 
     '⮜end-of-text⮞'
 ]
-# list(CONTROL_TOKENS.__dict__.values())
 
 FORCED_TOKENS = ["AI"]
 # [
@@ -109,10 +108,10 @@ PRETRAINING_VAL_RATIO = 1e-3
 
 MAX_LEARNING_RATE = 6e-4
 MIN_LEARNING_RATE = 6e-5
-WARMUP_STEPS = 2_000
+WARMUP_ITERS = 2_000
 
 WEIGHT_DECAY = .1
-DECAY_STEPS = 100_000
+DECAY_ITERS = 100_000
 
 BETA_1 = .9
 BETA_2 = .95
