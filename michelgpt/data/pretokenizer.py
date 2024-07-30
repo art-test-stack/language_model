@@ -1,6 +1,7 @@
 from michelgpt.settings import CONTROL_TOKENS_LIST
 
-from tokenizers import NormalizedString
+from tokenizers import NormalizedString, PreTokenizedString
+
 from typing import List
 import regex
 
@@ -9,9 +10,11 @@ class PreTokenizer():
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
 
-    def pre_tokenize(self, text: str) -> List[str]:
+    def process(self, i: int, normalized_text: NormalizedString) -> List[NormalizedString]: 
         if self.verbose:
             print("Starting pretokenization")
+
+        text = str(normalized_text)
 
         if text == '':
             return []
@@ -23,14 +26,12 @@ class PreTokenizer():
         words = regex.split(reg, text, flags = regex.UNICODE, concurrent = False)
 
         values_to_remove = ['', ' ', '  ', None]
-        
         words = [ 
             ' ' + w[:-1] if not w.startswith(' ') and w.endswith(' ') and w not in CONTROL_TOKENS_LIST else
             ' ' + w if not w.startswith(' ') and w not in CONTROL_TOKENS_LIST else
             w[:-1] if w.endswith(' ') and w not in CONTROL_TOKENS_LIST else w
             for w in words
         ]
-
         filter_by = lambda w: w not in values_to_remove
         words = list(filter(filter_by, words))
 
@@ -41,3 +42,7 @@ class PreTokenizer():
             print("PreTokenization finished")
 
         return words
+
+    def pre_tokenize(self, text: PreTokenizedString) -> None:
+        
+        text.split(self.process)
