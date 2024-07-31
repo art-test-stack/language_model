@@ -4,10 +4,12 @@ from michelgpt.settings import *
 import regex as re
 from typing import List, Dict
 from pathlib import Path
+from tqdm import tqdm
+
 
 class Tokenizer:
 
-    def __init__(self, pattern: str = TOKEN_SPLIT_PATTERN, special_tokens: Dict[str, str] = CONTROL_TOKENS_DICT.values()):
+    def __init__(self, pattern: str = TOKEN_SPLIT_PATTERN, special_tokens: List[str] = CONTROL_TOKENS_DICT.values()):
         self.merges = {} 
         self.pattern = "" 
         self.special_tokens = {} 
@@ -19,18 +21,21 @@ class Tokenizer:
         self.inverse_special_tokens = {}
 
 
-    def train(self, text, vocab_size: int = VOCAB_SIZE, verbose: bool = True):
+    def train(self, text: List[str] | str, vocab_size: int = VOCAB_SIZE, verbose: bool = True):
         assert vocab_size >= 256
-
+        if verbose:
+            print("Start tokenizer training")
         num_merges = vocab_size - 256
 
+        text = " ".join(text)if type(text) == list else text
+            
         text_chunks = re.findall(self.compiled_pattern, text)
 
         ids = [list(ch.encode("utf-8")) for ch in text_chunks]
 
         merges = {}
         vocab = {idx: bytes([idx]) for idx in range(256)}
-        for i in range(num_merges):
+        for i in tqdm(range(num_merges)):
             stats = {}
             for chunk_ids in ids:
                 get_stats(chunk_ids, stats)
@@ -40,8 +45,7 @@ class Tokenizer:
             merges[pair] = idx
             vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
 
-            if verbose:
-                print(f"merge {i+1}/{num_merges}: {pair} -> {idx} ({vocab[idx]}) had {stats[pair]} occurrences")
+        print("Finished tokenizer training")
 
         self.merges = merges
         self.vocab = vocab
@@ -49,7 +53,8 @@ class Tokenizer:
 
     def register_special_tokens(self, special_tokens: List[str]):
         self.special_tokens = special_tokens
-        self.inverse_special_tokens = {v: k for k, v in special_tokens.items()}
+        self.inverse_special_tokens = {}
+        self.inverse_special_tokens = {len(self.vocab)+len(self.inverse_special_tokens): token for token in special_tokens}
 
 
     def decode(self, ids):
@@ -82,7 +87,7 @@ class Tokenizer:
         return ids
 
 
-    def encode_ordinary(self, text):
+    def encode_ordinary(self, text: str):
         text_chunks = re.findall(self.compiled_pattern, text)
         ids = []
         for chunk in text_chunks:
@@ -92,7 +97,7 @@ class Tokenizer:
         return ids
 
 
-    def encode(self, text, allowed_special="none_raise"):
+    def encode(self, text, allowed_special="all"):
         special = None
 
         if allowed_special == "all":
