@@ -125,6 +125,7 @@ Don't forget to give the project a star! Thanks again!
 1. [Attention is all you need](https://arxiv.org/pdf/1706.03762)
 2. [Building a text generation model from scratch by Vincent Bons](https://wingedsheep.com/building-a-language-model/)
 3. [nanoGPT by Andrej Karpathy](https://github.com/karpathy/nanoGPT/tree/master) 
+4. [Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)
 
 <!-- LICENSE -->
 ## License
