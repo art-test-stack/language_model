@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 class Tokenizer:
 
-    def __init__(self, pattern: str = TOKEN_SPLIT_PATTERN, special_tokens: List[str] = CONTROL_TOKENS_DICT.values()):
+    def __init__(self, pattern: str = TOKEN_SPLIT_PATTERN, special_tokens: List[str] = CONTROL_TOKENS_LIST):
         self.merges = {} 
         self.pattern = "" 
         self.special_tokens = {} 
