@@ -2,6 +2,7 @@ import torch
 from pathlib import Path
 
 # ----------- PROCESSOR -----------
+
 CUDA_AVAILABLE = torch.cuda.is_available()
 MPS_AVAILABLE = torch.backends.mps.is_available()
 if MPS_AVAILABLE:
@@ -24,47 +25,8 @@ class CONTROL_TOKENS:
     assistant = '⮜assistant⮞' 
     end_of_text = '⮜end-of-text⮞'
 
-
-CONTROL_TOKENS_DICT = {
-    "unknown_token": '⮜unknown⮞',
-    "padding_token": '⮜padding⮞',
-    "start_of_text_token": '⮜start-of-text⮞', 
-    "tab_token": '⮜tab⮞', 
-    "new_line_token": '⮜new-line⮞', 
-    "human_token": '⮜human⮞', 
-    "system_token": '⮜system⮞', 
-    "user_token": '⮜user⮞', 
-    "assistant_token": '⮜assistant⮞', 
-    "end_of_text_token": '⮜end-of-text⮞'
-}
-
-
-CONTROL_TOKENS_LIST = [
-    '⮜unknown⮞', 
-    '⮜padding⮞', 
-    '⮜start-of-text⮞', 
-    '⮜tab⮞', 
-    '⮜new-line⮞', 
-    '⮜human⮞', 
-    '⮜system⮞', 
-    '⮜user⮞', 
-    '⮜assistant⮞', 
-    '⮜end-of-text⮞'
-]
-
+CONTROL_TOKENS_LIST = list(CONTROL_TOKENS.__dict__.values())[1:-3]
 FORCED_TOKENS = ["AI"]
-# [
-#     '⮜unknown⮞', 
-#     '⮜padding⮞', 
-#     '⮜start-of-text⮞', 
-#     '⮜tab⮞', 
-#     '⮜new-line⮞', 
-#     '⮜human⮞', 
-#     '⮜system⮞', 
-#     '⮜user⮞', 
-#     '⮜assistant⮞', 
-#     '⮜end-of-text⮞'
-# ]
 
 DATA_FOLDER = Path("data")
 MIN_DOCUMENT_SIZE = 0
@@ -74,7 +36,8 @@ VOCAB_SIZE = 32_000
 VOCAB_FILE = DATA_FOLDER.joinpath("vocab.json")
 MAX_TOKEN_LENGTH = 16
 
-TOKEN_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
+# TOKEN_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+""" # GPT 4 SPLIT
+TOKEN_SPLIT_PATTERN = r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""" # GPT 2 SPLIT
 
 # ------------- DRIVE -------------
 

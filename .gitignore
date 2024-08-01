@@ -1,4 +1,4 @@
-*.ipynb
+run.ipynb
 
 /data/*
 !/data/README.md

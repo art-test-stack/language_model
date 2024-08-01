@@ -1,7 +1,7 @@
 # from torch.utils.data.dataset import Dataset
 
 from michelgpt.data.clean import *
-from michelgpt.data.tokenizer import Tokenizer
+from michelgpt.data.tokenizer_custom import Tokenizer
 from michelgpt.settings import *
 
 import os, random, pickle

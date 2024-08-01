@@ -1,39 +1,38 @@
-from michelgpt.settings import CONTROL_TOKENS_LIST
+from michelgpt.settings import *
 
 from tokenizers import NormalizedString, PreTokenizedString
 
 from typing import List
-import regex
+import regex as re
+
+
+def split(
+        text: str, 
+        split_pattern: str = TOKEN_SPLIT_PATTERN,
+        control_tokens: List[str] = CONTROL_TOKENS_LIST,
+    ) -> List[str]:
+
+    if text == '':
+        return []
+    
+    control_tokens_pattern = "| ?".join(map(re.escape, control_tokens))
+    reg = split_pattern
+    re_compiled = re.compile(rf"""({control_tokens_pattern})|({reg})""") 
+
+    words = [ w[0] if w[0] else w[1] for w in re.findall(re_compiled, text) ]
+
+    return words
 
 
 class PreTokenizer():
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
 
-    def process(self, i: int, normalized_text: NormalizedString) -> List[NormalizedString]: 
+    def split(self, i: int, normalized_text: NormalizedString) -> List[NormalizedString]: 
         if self.verbose:
             print("Starting pretokenization")
 
-        text = str(normalized_text)
-
-        if text == '':
-            return []
-        
-        safe_control_tokens = [regex.escape(c) for c in CONTROL_TOKENS_LIST]
-        reg = r'(' + r'|'.join(safe_control_tokens) + r'|\d+|\s+|\p{L}+|[^\d\p{L}\s' + r''.join([f'[{i}]' for i in safe_control_tokens]) + r']+)'
-        
-        text = text.lower()
-        words = regex.split(reg, text, flags = regex.UNICODE, concurrent = False)
-
-        values_to_remove = ['', ' ', '  ', None]
-        words = [ 
-            ' ' + w[:-1] if not w.startswith(' ') and w.endswith(' ') and w not in CONTROL_TOKENS_LIST else
-            ' ' + w if not w.startswith(' ') and w not in CONTROL_TOKENS_LIST else
-            w[:-1] if w.endswith(' ') and w not in CONTROL_TOKENS_LIST else w
-            for w in words
-        ]
-        filter_by = lambda w: w not in values_to_remove
-        words = list(filter(filter_by, words))
+        words = split(str(normalized_text))
 
         words = [NormalizedString(w) for w in words]
 
@@ -42,7 +41,8 @@ class PreTokenizer():
             print("PreTokenization finished")
 
         return words
+        
 
     def pre_tokenize(self, text: PreTokenizedString) -> None:
         
-        text.split(self.process)
+        text.split(self.split)

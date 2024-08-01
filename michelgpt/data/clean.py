@@ -3,6 +3,7 @@ from michelgpt.settings import *
 import regex
 from unidecode import unidecode
 
+
 AUTHORIZED_UNICODE = set(
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' \
 	'0123456789' \
@@ -22,11 +23,13 @@ AUTHORIZED_UNICODE = set(
 	'🏴🏁🚩🎌'
 )
 
+
 AUTHORIZED_ASCII = set(
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' \
 	'0123456789' \
 	' !"#$%&\'`()*+,-./:;<=>?@[\\]^_{|}~'
 )
+
 
 REPLACE_UNICODE = {
 	'« ': '"',
@@ -104,7 +107,7 @@ CONTROL_REPLACE = {
 	'\n': '⮜new-line⮞'
 }
 
-POSSIBLE_CHARS = AUTHORIZED_UNICODE | set(DECODE_STRING_EMOJIS.keys())
+POSSIBLE_CHARS = sorted(AUTHORIZED_UNICODE | set(DECODE_STRING_EMOJIS.keys()))
 
 
 def clean_ascii(char: str) -> str:
@@ -170,15 +173,15 @@ def unclean_string(text: str, keep_control_tokens: bool = False) -> str:
 	if keep_control_tokens:
 		return text
 
-	text = text.replace('⮜unknown⮞', '�')
-	text = text.replace('⮜padding⮞', '')
-	text = text.replace('⮜start-of-text⮞', '\n\n---------- START OF TEXT ----------\n\n')
-	text = text.replace('⮜tab⮞', '\t')
-	text = text.replace('⮜new-line⮞', '\n')
-	text = text.replace('⮜human⮞', '\n\n--- Human ---\n\n')
-	text = text.replace('⮜system⮞', '\n\n--- System ---\n\n')
-	text = text.replace('⮜user⮞', '\n\n--- User ---\n\n')
-	text = text.replace('⮜assistant⮞', '\n\n--- Assistant ---\n\n')
-	text = text.replace('⮜end-of-text⮞', '\n\n---------- END OF TEXT ----------\n\n')
+	text = text.replace(CONTROL_TOKENS.unknown, '�')
+	text = text.replace(CONTROL_TOKENS.padding, '')
+	text = text.replace(CONTROL_TOKENS.start_of_text, '\n\n---------- START OF TEXT ----------\n\n')
+	text = text.replace(CONTROL_TOKENS.tab, '\t')
+	text = text.replace(CONTROL_TOKENS.new_line, '\n')
+	text = text.replace(CONTROL_TOKENS.human, '\n\n--- Human ---\n\n')
+	text = text.replace(CONTROL_TOKENS.system, '\n\n--- System ---\n\n')
+	text = text.replace(CONTROL_TOKENS.user, '\n\n--- User ---\n\n')
+	text = text.replace(CONTROL_TOKENS.assistant, '\n\n--- Assistant ---\n\n')
+	text = text.replace(CONTROL_TOKENS.end_of_text, '\n\n---------- END OF TEXT ----------\n\n')
 
 	return text

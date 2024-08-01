@@ -27,7 +27,7 @@ class Tokenizer:
             print("Start tokenizer training")
         num_merges = vocab_size - 256
 
-        text = " ".join(text)if type(text) == list else text
+        text = " ".join(text) if type(text) == list else text
             
         text_chunks = re.findall(self.compiled_pattern, text)
 

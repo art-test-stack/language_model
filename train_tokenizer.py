@@ -12,9 +12,9 @@ def main():
     tk = Tokenizer()
 
     tk.train(wiki_set_30k, vocab_size=VOCAB_SIZE)
-    tk.register_special_tokens(CONTROL_TOKENS_DICT.values())
+    tk.register_special_tokens(CONTROL_TOKENS_LIST)
     tk.save()
-    
+
     encoded_text = tk.encode("very simple test")
     print(f'Encoded text: {encoded_text}')
 
