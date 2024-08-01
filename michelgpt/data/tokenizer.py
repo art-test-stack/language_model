@@ -13,7 +13,7 @@ from tokenizers.normalizers import NFD, Lowercase, StripAccents
 from tokenizers.processors import TemplateProcessing
 from tokenizers.decoders import BPEDecoder
 
-import json
+import json, pickle
 import regex as re
 from typing import Dict, List
 from tqdm import tqdm
@@ -42,15 +42,20 @@ class Tokenizer:
             save_text_array(self.vocab, file.joinpath('vocab.txt'))
 
         if file.joinpath('trainer.pt').exists():
-            self.trainer: Trainer = None
+            self.load_trainer()
         else:
-            self.trainer: Trainer = None
-            
+            self.trainer: Trainer = BpeTrainer(
+                vocab_size = VOCAB_SIZE,
+                show_progress=True,
+                special_tokens=CONTROL_TOKENS_LIST
+            )
+            self.save_trainer
+
         self.split_pattern = split_pattern
-        self.compiled_pattern = re.compile(self.pattern)
+        self.compiled_pattern = pretk.regex_pattern(self.split_pattern, special_tokens=self.control_tokens)
 
 
-    def get_vocab(self, type: str = "dict", verbose: bool = False):
+    def get_vocab(self, type: str = "dict", verbose: bool = False) -> Dict[int, str] | List[str] | None:
         if verbose:
             for id, token in self.to_token.items():
                 print(f"{id=}: {token=}")
@@ -65,7 +70,7 @@ class Tokenizer:
             return
 
 
-    def create(self, dataset):
+    def create(self, dataset) -> None:
         
         self._create_vocab(dataset)
         self.clean_vocab()
@@ -91,12 +96,6 @@ class Tokenizer:
             ],
         )
 
-        trainer = BpeTrainer(
-			vocab_size = VOCAB_SIZE,
-			show_progress = True,
-            special_tokens=CONTROL_TOKENS_LIST
-        )
-
         def batch_iterator(dataset, batch_size=1000):
             for i in tqdm(range(0, len(dataset), batch_size)):
                 yield dataset[i : i + batch_size]["text"]
@@ -106,20 +105,22 @@ class Tokenizer:
 
         vocab = tokenizer.get_vocab()
 
+        # self.trainer = tokenizer.get_trainer()
+        self.save_trainer()
         self.clean_vocab()
         self.vocab = {v: i for i,v in dict(sorted({ i:v for v, i in self.vocab.items()}.items())).items()}
         self.save_vocab()
 
 
-    def _add_control_tokens_to_vocab(self):
+    def _add_control_tokens_to_vocab(self) -> Dict[int, str]:
         for token in CONTROL_TOKENS_LIST:
             token_value = 0
-            if token not in self.vocab.keys():
-                while token_value in self.vocab.values():
+            if token not in self.vocab.values():
+                while token_value in self.vocab.keys():
                     token_value += 1
-                self.vocab[token] = token_value
+                self.to_token[token_value] = token
         
-        return self.vocab
+        return self.to_token
 
 
     def clean_vocab(self):
@@ -145,10 +146,19 @@ class Tokenizer:
             json.dump(self.vocab, vf)
 
 
-    def load_from_vocab(self):
+    def load_vocab(self):
         with open(self.file.joinpath('vocab.json'), 'rb') as vf:
             self.to_token = json.load(vf)
             self.to_index = {v: k for k, v in self.to_token.items()}
+
+
+    def save_trainer(self):
+        with open(self.file.joinpath('trainer.pkl'), 'wb') as file:
+            pickle.dump(self.trainer, file)
+
+
+    def load_trainer(self):
+        self.trainer = pickle.load(self.file.joinpath('trainer.pkl'), 'rb')
 
 
     def encode(
@@ -164,7 +174,7 @@ class Tokenizer:
         if clean_text:
             text = clean_string(text=text, keep_control_tokens=keep_control_tokens)
 
-        text_chunks = pretk.split(text)
+        text_chunks = pretk.split(text, split_pattern=self.split_pattern, special_tokens=self.special_tokens)
 
         if verbose:
             print("Encoding dataset...")
