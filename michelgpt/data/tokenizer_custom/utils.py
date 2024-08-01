@@ -2,11 +2,6 @@ import unicodedata
 
 
 def get_stats(ids, counts=None):
-    """
-    Given a list of integers, return a dictionary of counts of consecutive pairs
-    Example: [1, 2, 3, 1, 2] -> {(1, 2): 2, (2, 3): 1, (3, 1): 1}
-    Optionally allows to update an existing dictionary of counts
-    """
     counts = {} if counts is None else counts
     for pair in zip(ids, ids[1:]): # iterate consecutive elements
         counts[pair] = counts.get(pair, 0) + 1
@@ -14,11 +9,6 @@ def get_stats(ids, counts=None):
 
 
 def merge(ids, pair, idx):
-    """
-    In the list of integers (ids), replace all consecutive occurrences
-    of pair with the new integer token idx
-    Example: ids=[1, 2, 3, 1, 2], pair=(1, 2), idx=4 -> [4, 3, 4]
-    """
     newids = []
     i = 0
     while i < len(ids):
@@ -31,7 +21,7 @@ def merge(ids, pair, idx):
             i += 1
     return newids
 
-# first two helper functions...
+
 def replace_control_characters(s: str) -> str:
     # we don't want to print control characters
     # which distort the output (e.g. \n or much worse)
@@ -44,6 +34,7 @@ def replace_control_characters(s: str) -> str:
         else:
             chars.append(f"\\u{ord(ch):04x}") # escape
     return "".join(chars)
+
 
 def render_token(t: bytes) -> str:
     # pretty print a token, escaping control characters

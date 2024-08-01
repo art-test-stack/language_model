@@ -1,6 +1,6 @@
 from datasets import load_dataset
 from michelgpt.settings import *
-from michelgpt.data.tokenizer import Tokenizer
+from michelgpt.data.tokenizer_custom import Tokenizer
 
 
 def main():
@@ -13,6 +13,7 @@ def main():
 
     tk.train(wiki_set_30k, vocab_size=VOCAB_SIZE)
     tk.register_special_tokens(CONTROL_TOKENS_DICT.values())
+    tk.save()
     
     encoded_text = tk.encode("very simple test")
     print(f'Encoded text: {encoded_text}')

@@ -1,4 +1,4 @@
-from michelgpt.data.tokenizer.utils import *
+from michelgpt.data.tokenizer_custom.utils import *
 from michelgpt.settings import *
 
 import regex as re
