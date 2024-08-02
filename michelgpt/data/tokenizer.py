@@ -17,7 +17,7 @@ import json, pickle
 import regex as re
 from typing import Dict, List
 from tqdm import tqdm
-
+from copy import copy
 
 class Tokenizer:
 
@@ -30,16 +30,16 @@ class Tokenizer:
         
         self.to_index: Dict[str, int] = {}
         self.to_token: Dict[int, str] = {}
-        self.control_tokens: List[str]
+        self.control_tokens: List[str] = special_tokens
         
-        self.special_tokens = list(special_tokens) if type(special_tokens) == str else special_tokens
+        self.special_tokens: Dict[int, str] = {}
 
         self.file: Path = file
         if file.joinpath('vocab.json').exists():
-            self.load_from_vocab(load_text_array(file.joinpath('vocab.txt')))
-        else:
-            self.create(file.joinpath("tk_data.txt"))
-            save_text_array(self.vocab, file.joinpath('vocab.txt'))
+            self.load_vocab()
+        # else:
+        #     self.create()
+        #     save_text_array(self.vocab, file.joinpath('vocab.txt'))
 
         if file.joinpath('trainer.pt').exists():
             self.load_trainer()
@@ -49,8 +49,8 @@ class Tokenizer:
                 show_progress=True,
                 special_tokens=CONTROL_TOKENS_LIST
             )
-            self.save_trainer
-
+            self.save_trainer()
+        self._add_special_tokens_to_vocab(special_tokens=special_tokens if type(special_tokens)==list else [special_tokens])
         self.split_pattern = split_pattern
         self.compiled_pattern = pretk.regex_pattern(self.split_pattern, special_tokens=self.control_tokens)
 
@@ -70,22 +70,25 @@ class Tokenizer:
             return
 
 
-    def create(self, dataset) -> None:
+    def create(self, dataset, batch_size: int = 2048, verbose: bool = True) -> None:
         
-        self._create_vocab(dataset)
+        self._create_vocab(dataset, batch_size, verbose)
         self.clean_vocab()
+        self._add_special_tokens_to_vocab(copy(list(self.special_tokens.values())))
+        self.sort_vocab()
         self.save_vocab()
 
 
-    def _create_vocab(self, dataset):
+    def _create_vocab(self, dataset, batch_size: int = 2048, verbose: bool = True):
         
-        print('Creating vocabulary...')
+        if verbose:
+            print('Creating vocabulary...')
 
         tokenizer = tk.Tokenizer(BPE(unk_token=CONTROL_TOKENS.unknown))
 
         tokenizer.normalizer = normalizers.Sequence([NFD(), Lowercase(), StripAccents()])
         
-        tokenizer.pre_tokenizer = PreTokenizer.custom(pretk.PreTokenizer())
+        tokenizer.pre_tokenizer = PreTokenizer.custom(pretk.PreTokenizer(verbose=False))
 
         tokenizer.post_processor = TemplateProcessing(
             single=f"{CONTROL_TOKENS.start_of_text} $A {CONTROL_TOKENS.end_of_text}",
@@ -96,54 +99,73 @@ class Tokenizer:
             ],
         )
 
-        def batch_iterator(dataset, batch_size=1000):
+        def batch_iterator(dataset, batch_size=batch_size):
             for i in tqdm(range(0, len(dataset), batch_size)):
-                yield dataset[i : i + batch_size]["text"]
+                try: 
+                    yield dataset[i : i + batch_size]["text"]
+                except:
+                    yield dataset["text"][i : i + batch_size]
 
-        print("Start training tokenizer...")
-        tokenizer.train_from_iterator(batch_iterator(dataset), trainer=trainer, length=len(dataset))
+        if verbose:
+            print("Start training tokenizer...")
+        tokenizer.train_from_iterator(batch_iterator(dataset), trainer=self.trainer, length=len(dataset))
 
-        vocab = tokenizer.get_vocab()
+        self.to_index = tokenizer.get_vocab()
+        self.to_token = { idx: tok for tok, idx in self.to_index.items() }
 
-        # self.trainer = tokenizer.get_trainer()
         self.save_trainer()
-        self.clean_vocab()
-        self.vocab = {v: i for i,v in dict(sorted({ i:v for v, i in self.vocab.items()}.items())).items()}
-        self.save_vocab()
 
 
-    def _add_control_tokens_to_vocab(self) -> Dict[int, str]:
-        for token in CONTROL_TOKENS_LIST:
-            token_value = 0
-            if token not in self.vocab.values():
-                while token_value in self.vocab.keys():
-                    token_value += 1
-                self.to_token[token_value] = token
+    def _add_special_tokens_to_vocab(self, special_tokens: List[str] = CONTROL_TOKENS_LIST) -> None:
+        to_pop = []
+        for idx, token in self.special_tokens.items():
+            if token not in self.to_token.values():
+                to_pop.append(idx)
         
-        return self.to_token
+        [self.special_tokens.pop(idx) for idx in to_pop]
+
+        new_tokens = []
+        new_idx = []
+        for token in special_tokens:
+            token_idx: int = 0
+            if token not in self.to_token.values():
+                while token_idx in self.to_token.keys():
+                    token_idx += 1
+                new_idx.append(token_idx)
+                new_tokens.append(token)
+                self.to_token[token_idx] = token
+                self.special_tokens[token_idx] = token
+            elif token not in self.special_tokens.values():
+                self.special_tokens[self.to_index[token]] = token
+            # elif not self.special_tokens[self.to_index[token]] == token:
+            #     pass
+
+        self.to_index = { tok: idx for idx, tok in self.to_token.items() }
 
 
     def clean_vocab(self):
         def is_valid(word):
-            if len(word) > MAX_TOKEN_LENGTH:
-                return False
-            
-            if any(c not in POSSIBLE_CHARS for c in word):
-                return False
             return True
+            # if len(word) > MAX_TOKEN_LENGTH:
+            #     return False
             
-        self.vocab = {k: v for k, v in self.vocab.items() if is_valid(k)}
-
+            # if any(c not in POSSIBLE_CHARS for c in word):
+            #     return False
+            # return True
+            
+        self.to_token = { idx: tok for idx, tok in self.to_token.items() if is_valid(tok) }
+        self.to_index = { tok: idx for idx, tok in self.to_token.items() }
 
     def sort_vocab(self):
 
-        self.vocab = {v: i for i,v in dict(sorted({ i:v for v, i in self.vocab.items()}.items())).items()}
+        self.to_token = dict(sorted({ int(idx): tok for tok, idx in self.to_index.items()}.items()))
+        self.to_index = { t: i for i, t in self.to_token.items() }
         self.save_vocab()
 
 
     def save_vocab(self):
         with open(self.file.joinpath('vocab.json'), 'w') as vf:
-            json.dump(self.vocab, vf)
+            json.dump(self.to_token, vf)
 
 
     def load_vocab(self):
@@ -164,7 +186,7 @@ class Tokenizer:
     def encode(
             self, 
             text: str, 
-            clean_text: bool = True,
+            clean_text: bool = False,
             keep_control_tokens: bool = True,
             verbose: bool = True
         ):
@@ -174,8 +196,7 @@ class Tokenizer:
         if clean_text:
             text = clean_string(text=text, keep_control_tokens=keep_control_tokens)
 
-        text_chunks = pretk.split(text, split_pattern=self.split_pattern, special_tokens=self.special_tokens)
-
+        text_chunks = pretk.split(text, split_pattern=self.split_pattern, special_tokens=self.special_tokens.values())
         if verbose:
             print("Encoding dataset...")
 
@@ -222,13 +243,13 @@ class Tokenizer:
         for idx in token_ids:
             if idx in self.to_token.keys():
                 part_bytes.append(self.to_token[idx])
-            elif idx in self.inverse_special_tokens:
-                part_bytes.append(self.inverse_special_tokens[idx].encode("utf-8"))
+            elif idx in self.special_tokens.keys():
+                part_bytes.append(self.special_tokens[idx])
             else:
                 raise ValueError(f"invalid token id: {idx}")
             
-        text_bytes = b"".join(part_bytes)
-        text_bytes = unclean_string(text_bytes, keep_control_tokens)
-        text = text_bytes.decode("utf-8", errors="replace")
+        text = "".join(part_bytes)
+        text = unclean_string(text, keep_control_tokens) # .encode("utf-8")
+        # text = text_bytes.decode("utf-8", errors="replace")
 
         return text

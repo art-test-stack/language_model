@@ -6,7 +6,16 @@ from typing import List
 import regex as re
 
 
-def regex_pattern(split_pattern: str = TOKEN_SPLIT_PATTERN, special_tokens: List[str] = CONTROL_TOKENS_LIST):
+def clear_token_space(splitted_text: List[str], special_tokens: List[str] = CONTROL_TOKENS_LIST) -> List[str]:
+    new_splitted_text = []
+    for word in splitted_text:
+        if word[1:] in special_tokens:
+            new_splitted_text.extend([word[0], word[1:]])
+        else:
+            new_splitted_text.append(word)
+    return new_splitted_text
+
+def regex_pattern(split_pattern: str = TOKEN_SPLIT_PATTERN, special_tokens: List[str] = CONTROL_TOKENS_LIST) -> re.Pattern:
     if len(special_tokens) == 0:
         return re.compile(split_pattern)
     
@@ -26,8 +35,9 @@ def split(
         return []
     
     re_compiled = regex_pattern(split_pattern, special_tokens)
-    words = [ w[0] if w[0] else w[1] for w in re.findall(re_compiled, text) ]
 
+    words = [ w[0] if w[0] else w[1] for w in re.findall(re_compiled, text) ]
+    words = clear_token_space(words, special_tokens)
     return words
 
 

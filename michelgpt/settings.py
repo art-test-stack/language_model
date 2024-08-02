@@ -34,7 +34,7 @@ OUTPUT_FOLDER = Path("output")
 MODEL_FOLDER = Path("")
 VOCAB_SIZE = 32_000
 VOCAB_FILE = DATA_FOLDER.joinpath("vocab.json")
-MAX_TOKEN_LENGTH = 16
+MAX_TOKEN_LENGTH = 32
 
 # TOKEN_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+""" # GPT 4 SPLIT
 TOKEN_SPLIT_PATTERN = r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""" # GPT 2 SPLIT
