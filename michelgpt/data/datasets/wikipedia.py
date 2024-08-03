@@ -8,7 +8,7 @@ from datasets import load_dataset, DownloadConfig
 
 class WikipediaDataset(Dataset):
     
-    def __init__(self, tokenizer: Tokenizer = Tokenizer()) -> None:
+    def __init__(self, tokenizer: Tokenizer = Tokenizer(), verbose: bool = True) -> None:
         super().__init__(name="wikipedia", multiplier=1.)
         self.train_part = 'pretraining'
         
@@ -33,7 +33,7 @@ class WikipediaDataset(Dataset):
         # for doc in self.dataset:
         # self.sizes['train'] += len(str(doc['text']).strip())
         
-        self.save(tokenizer)
+        self.save(tokenizer, verbose)
         print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.sizes["train"]:,} characters')
         
 
@@ -55,4 +55,3 @@ class WikipediaDataset(Dataset):
                     array[i] = '«' if start else '»'
                     start = not start
             return ''.join(array)
-        

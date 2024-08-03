@@ -26,21 +26,21 @@ class TokenizedDataset(Dataset):
     def __init__(self,
         dataset: Datasets,
         mode: DatasetMode = DatasetMode.TRAIN,
-        max_content: int = MAX_CONTEXT
+        max_content: int = MAX_CONTEXT,
+        verbose: bool = True
     ) -> None:
         super().__init__()
         self.mode = mode
         self.max_content = max_content
-        self._adapt_sequences_to_max_content(dataset)
+        self._adapt_sequences_to_max_content(dataset, verbose)
 
-    def _adapt_sequences_to_max_content(self, dataset) -> None:
+    def _adapt_sequences_to_max_content(self, dataset, verbose: bool = True) -> None:
         adapted_data = []
         self.meta_data = []
-        for id, tkn_data in enumerate(dataset):
+        for id, tkn_data in enumerate(tqdm(dataset, desc=f"Create tokenized {self.mode} set", disable=not verbose)):
             self.meta_data.append({"raw_id": id, "id_range": [id, id + len(tkn_data) - self.max_content - 1]})
-
-        for i in range(0, len(tkn_data) - self.max_content - 1):
-            adapted_data.append(tkn_data[i: i + self.max_content + 1])
+            for i in range(0, len(tkn_data) - self.max_content - 1):
+                adapted_data.append(tkn_data[i: i + self.max_content + 1])
 
         self.data = torch.Tensor(adapted_data)
 
@@ -89,7 +89,7 @@ class Dataset():
         tokens = [tokenizer.to_index[CONTROL_TOKENS.start_of_text], *tokenizer.encode(document['text'], verbose=False), tokenizer.to_index[CONTROL_TOKENS.end_of_text]]
         return {'tokens': np.array(tokens, dtype = np.uint16), 'size': len(tokens)}
     
-    def save(self, tokenizer: Tokenizer = Tokenizer()) -> None:
+    def save(self, tokenizer: Tokenizer = Tokenizer(), verbose: bool = True) -> None:
         split_dataset = self.dataset.train_test_split(test_size = PRETRAINING_VAL_RATIO, shuffle = True)
         split_dataset['val'] = split_dataset.pop('test')
         
@@ -103,7 +103,7 @@ class Dataset():
             total = 0
             ids = []
             
-        for doc in tqdm(documents, desc=f'Saving {self.name} {split}'):
+        for doc in tqdm(documents, desc=f'Saving {self.name} {split}', disable=not verbose):
             ids.append({
                 'start': total,
                 'size': doc['size']
@@ -124,7 +124,7 @@ class Dataset():
         
         i = 0
 
-        for batch_i in tqdm(range(batch_size), desc = f'Saving {self.name} {split}'):
+        for batch_i in tqdm(range(batch_size), desc = f'Saving {self.name} {split}', disable=not verbose):
 
             batch = documents.shard(num_shards=batch_size, index=batch_i, contiguous=True).with_format('numpy')
             file_batch = batch
@@ -134,9 +134,9 @@ class Dataset():
 
         file.flush()
         
-        self.trainset = TokenizedDataset(tokenized["train"], mode=DatasetMode.TRAIN)
-        self.valset = TokenizedDataset(tokenized["val"], mode=DatasetMode.VAL)
-        self.testset = TokenizedDataset(tokenized["test"], mode=DatasetMode.TEST) if "test" in tokenized.keys() else None
+        self.trainset = TokenizedDataset(tokenized["train"], mode=DatasetMode.TRAIN, verbose=verbose)
+        self.valset = TokenizedDataset(tokenized["val"], mode=DatasetMode.VAL, verbose=verbose) if "val" in tokenized.keys() else None
+        self.testset = TokenizedDataset(tokenized["test"], mode=DatasetMode.TEST, verbose=verbose) if "test" in tokenized.keys() else None
         
         with open(DATA_FOLDER.joinpath(self.train_part, self.name, f'metadata.pkl'), 'wb') as file:
             pickle.dump({

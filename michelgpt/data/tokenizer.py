@@ -86,7 +86,7 @@ class Tokenizer:
 
         tokenizer = tk.Tokenizer(BPE(unk_token=CONTROL_TOKENS.unknown))
 
-        tokenizer.normalizer = normalizers.Sequence([NFD(), Lowercase(), StripAccents()])
+        tokenizer.normalizer = normalizers.Sequence([NFD(), StripAccents()])
         
         tokenizer.pre_tokenizer = PreTokenizer.custom(pretk.PreTokenizer(verbose=False))
 
