@@ -56,7 +56,7 @@ class TokenizedDataset(Dataset):
 
 	def __len__(self) -> int:
 		return len(self.data)
-	
+		
 
 class Dataset():
 
@@ -77,7 +77,7 @@ class Dataset():
 		self.trainset: TokenizedDataset = None
 		self.valset: TokenizedDataset = None
 		self.testset: TokenizedDataset = None
-	
+		
 
 	def get_document(self, index: int | None = None):
 		assert self.dataset == None, "No data"
@@ -91,7 +91,7 @@ class Dataset():
 		tokens = [tokenizer.to_index[CONTROL_TOKENS.start_of_text], *tokenizer.encode(document['text']), tokenizer.to_index[CONTROL_TOKENS.end_of_text]]
 
 		return {'tokens': np.array(tokens, dtype = np.uint16), 'size': len(tokens)}
-	
+		
 
 	def save(self, tokenizer: Tokenizer = Tokenizer()) -> None:
 		split_dataset = self.dataset.train_test_split(test_size = PRETRAINING_VAL_RATIO, shuffle = True)
