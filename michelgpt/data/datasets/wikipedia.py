@@ -1,5 +1,6 @@
 
 from michelgpt.data.datasets.dataset import Dataset
+from michelgpt.data.tokenizer import Tokenizer
 from michelgpt.settings import *
 
 import re
@@ -11,13 +12,11 @@ from datasets import load_dataset, DownloadConfig, concatenate_datasets
 
 class WikipediaDataset(Dataset):
 
-	def __init__(self) -> None:
+	def __init__(self, tokenizer: Tokenizer = Tokenizer()) -> None:
 
-		super().__init__()
+		super().__init__(name="wikipedia", multiplier=1.)
 
-		self.training_part = 'pretraining'
-		self.name = 'wikipedia'
-		self.multiplier = 4.0
+		self.train_part = 'pretraining'
 
 		print('Downloading Wikipedia dataset...')
 
@@ -34,13 +33,13 @@ class WikipediaDataset(Dataset):
 		)
 
 		self.dataset = wikipedia.filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
-		self.size['train'] = 0
+		# self.sizes['train'] = 0
 
-		for doc in self.dataset:
-			self.size['train'] += len(str(doc['text']).strip())
+		# for doc in self.dataset:
+		# 	self.sizes['train'] += len(str(doc['text']).strip())
 
-		self.save_raw()
-		print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.size["train"]:,} characters')
+		self.save()
+		print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.sizes["train"]:,} characters')
 
 
 	def _clean_wikipedia(self, text: str) -> str:
@@ -64,44 +63,3 @@ class WikipediaDataset(Dataset):
 
 		return ''.join(array)
 	
-
-	def save_raw(self) -> None:
-		split_dataset = self.dataset.train_test_split(test_size = PRETRAINING_VAL_RATIO, shuffle = True)
-		split_dataset['val'] = split_dataset.pop('test')
-
-		for split, documents in split_dataset.items():
-
-			total = 0
-			ids = []
-
-			for doc in tqdm(documents, desc = f'Saving {self.name} {split} ids'):
-
-				ids.append({
-					'start': total,
-					'size': len(doc)
-				})
-
-				total += len(doc)
-
-			with open(DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'{split}_ids.pkl'), 'wb') as file:
-				pickle.dump(ids, file)
-
-			batch_size = 1_024
-
-			while batch_size >= len(documents):
-				batch_size //= 2
-
-			self.size[split] = int(np.sum(len(documents), dtype = np.uint64))
-			path = DATA_FOLDER.joinpath(self.training_part).joinpath(self.name).joinpath(f'{split}.bin')
-			file = np.memmap(path, dtype = np.uint16, mode = 'w+', shape = (self.size[split],))
-			i = 0
-
-			for batch_i in tqdm(range(batch_size), desc = f'Saving {self.name} {split}'):
-
-				batch = documents.shard(num_shards = batch_size, index = batch_i, contiguous = True).with_format('numpy')
-				file_batch = batch
-				size_batch = len(file_batch["text"])
-				file[i:i + size_batch] = size_batch
-				i += len(file_batch)
-
-			file.flush()
