@@ -22,15 +22,15 @@ class AdamW(optim.AdamW):
             fused=fused
         )
 
-    def update_learning_rate(self):
-        if self.step < WARMUP_STEPS:
-            ratio = self.step / WARMUP_STEPS
-            self.learning_rate = MAX_LEARNING_RATE * ratio
+    def update_learning_rate(self, iter):
+        if iter < WARMUP_ITERS:
+            self.learning_rate = MAX_LEARNING_RATE * iter / WARMUP_ITERS
 		
-        elif self.step < WARMUP_STEPS + DECAY_STEPS:
-            ratio = (self.step - WARMUP_STEPS) / DECAY_STEPS
-            ratio = 0.5 * (1.0 + torch.cos(torch.pi * ratio))
-            self.learning_rate = ratio * (MAX_LEARNING_RATE - MIN_LEARNING_RATE) + MIN_LEARNING_RATE
+        elif iter < WARMUP_ITERS + DECAY_ITERS:
+            ratio = (iter - WARMUP_ITERS) / (DECAY_ITERS - WARMUP_ITERS)
+            assert 0 <= ratio <+ 1
+            coeff = 0.5 * (1.0 + torch.cos(torch.pi * ratio))
+            self.learning_rate = MIN_LEARNING_RATE + coeff * (MAX_LEARNING_RATE - MIN_LEARNING_RATE) 
 		
         else:
             self.learning_rate = MIN_LEARNING_RATE

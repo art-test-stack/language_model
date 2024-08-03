@@ -1,7 +1,8 @@
 from michelgpt.train.model import MichelTransformer
+from michelgpt.train.optimizer import AdamW
 
 from michelgpt.data.datasets.dataset import Dataset
-from michelgpt.data.tokenizer import Tokenizer
+from michelgpt.data.tokenizer_custom import Tokenizer
 
 from michelgpt.settings import *
 
@@ -20,7 +21,7 @@ class Trainer():
         super().__init__()
 
         self.time = .0
-        self.step = 0
+        self.iter = 0
         self.tokens = 0
         self.model = model
         self.epochs = 0
@@ -31,7 +32,7 @@ class Trainer():
         self.best_val_loss = float('inf')
 
         if optimizer is None:
-            self.optimizer = optim.Adam(model.parameters(), lr=1e-4)
+            self.optimizer = AdamW(model.parameters())
         else:
             self.optimizer = optimizer
         self.tokenizer = tokenizer
@@ -42,7 +43,7 @@ class Trainer():
 
         self.metrics = {
             "time": [],
-            "step": [],
+            "iter": [],
             "tokens": [],
             "epochs": [],
             "accuracy": [],
@@ -55,7 +56,7 @@ class Trainer():
     def save_metrics(self) -> None:
 
         self.metrics['time'].append(time.time() - self.time)
-        self.metrics["step"].append(self.step)
+        self.metrics["iter"].append(self.iter)
         self.metrics["tokens"].append(self.tokens)
         self.metrics["epochs"].append(self.epochs)
         self.metrics["accuracy"].append(self.accuracy)
@@ -70,14 +71,12 @@ class Trainer():
         pickle.dump(self.metrics, open(OUTPUT_FOLDER.joinpath('metrics.pkl'), 'wb'))
         self.time = time.time()
 
-
-
     def load_metrics(self, path: Path) -> None:
         if not path.exists():
             return
         
         self.metrics_history = pickle.load(open(OUTPUT_FOLDER.joinpath('metrics.pkl'), 'rb'))
-        self.step = self.metrics["step"][-1]
+        self.iter = self.metrics["iter"][-1]
         self.metrics = self.metrics["tokens"][-1]
         self.epochs = self.metrics["epochs"][-1]
         self.accuracy = self.metrics["accuracy"][-1]
@@ -128,3 +127,46 @@ class Trainer():
     def find_previous_session(self):
         pass
 
+
+    def fit(self, train_set: Dataset, test_set: Dataset, batch_size: int):
+        self.time = time.time()
+
+        while True:
+            losses = []
+
+            batches = []
+            for _, batch in enumerate(train_set, 0):
+                sequence_tensor = torch.tensor(data[i: i + batch_size], dtype=torch.long)
+
+                mask = torch.ones_like(sequence_tensor)
+                mask[sequence_tensor == self.tokenizer.character_to_token('<pad>')] = 0
+
+                batches.append((sequence_tensor, mask))
+
+
+                input_tensor = torch.zeros((batch_size, self.model.max_content + 1), dtype=torch.long)
+                mask = torch.zeros((batch_size, self.model.max_content + 1), dtype=torch.long)
+
+                for i, input_entry in enumerate(batch[0]):
+                    input_tensor[i] = input_entry
+
+                for i, mask_entry in enumerate(batch[1]):
+                    mask[i] = mask_entry
+
+                model_output, target = self.forward(x=input_tensor, mask=mask)
+
+                loss = self.loss_function(model_output.transpose(1, 2), target)
+
+                loss.backward()
+
+                nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
+
+                self.optimizer.iter()
+
+                self.optimizer.zero_grad()
+
+                losses.append(loss.item())
+
+            epoch_loss = np.average(losses)
+            self.loss.append(epoch_loss)
+            print('iter:', self.iter, 'Loss:', epoch_loss)
