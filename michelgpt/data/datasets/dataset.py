@@ -2,14 +2,15 @@ from michelgpt.data.clean import *
 from michelgpt.data.tokenizer import Tokenizer
 from michelgpt.settings import *
 
-from datasets import Dataset as Datasets
 import torch
 from torch.utils.data.dataset import Dataset
+
+from datasets import Dataset as Datasets
 
 import numpy as np
 import numpy.typing as npt
 
-import os, random, pickle
+import pickle
 from tqdm import tqdm
 from typing import Tuple
 from enum import Enum
@@ -47,9 +48,9 @@ class TokenizedDataset(Dataset):
 		assert self.data == None, "No data"
 		if index == None:
 			index = np.random.randint(len(self.data))
-		text_encoded = torch.Tensor(Tokenizer().encode(self.data[index]))
+		# text_encoded = torch.Tensor(Tokenizer().encode(self.data[index], verbose=False))
 		
-		x, y = text_encoded[:, :-1], text_encoded[:, 1:]
+		x, y = self.data[:, :-1], self.data[:, 1:]
 		return x, y
 
 	def __len__(self) -> int:
@@ -85,7 +86,7 @@ class Dataset():
 		return CONTROL_TOKENS.start_of_text + clean_string(self.dataset[index]["text"]) + CONTROL_TOKENS.end_of_text
 	
 	def document_to_tokens(self, document: dict[str, str], tokenizer: Tokenizer = Tokenizer()) -> dict[str, npt.NDArray[np.uint16] | int]:
-		tokens = [tokenizer.to_index[CONTROL_TOKENS.start_of_text], *tokenizer.encode(document['text']), tokenizer.to_index[CONTROL_TOKENS.end_of_text]]
+		tokens = [tokenizer.to_index[CONTROL_TOKENS.start_of_text], *tokenizer.encode(document['text'], verbose=False), tokenizer.to_index[CONTROL_TOKENS.end_of_text]]
 		return {'tokens': np.array(tokens, dtype = np.uint16), 'size': len(tokens)}
 	
 	def save(self, tokenizer: Tokenizer = Tokenizer()) -> None:
