@@ -1,4 +1,3 @@
-
 from michelgpt.data.datasets.dataset import Dataset
 from michelgpt.data.tokenizer import Tokenizer
 from michelgpt.settings import *
@@ -33,12 +32,12 @@ class WikipediaDataset(Dataset):
 		)
 
 		self.dataset = wikipedia.filter(lambda doc: len(str(doc['text']).strip()) >= MIN_DOCUMENT_SIZE)
-		# self.sizes['train'] = 0
+				# self.sizes['train'] = 0
 
 		# for doc in self.dataset:
-		# 	self.sizes['train'] += len(str(doc['text']).strip())
+		# 		# 	self.sizes['train'] += len(str(doc['text']).strip())
 
-		self.save()
+		self.save(tokenizer)
 		print(f'Wikipedia dataset downloaded: {len(self.dataset):,} documents | {self.sizes["train"]:,} characters')
 
 
@@ -60,6 +59,4 @@ class WikipediaDataset(Dataset):
 			if array[i] == '"':
 				array[i] = '«' if start else '»'
 				start = not start
-
 		return ''.join(array)
-	
