@@ -8,16 +8,24 @@ from michelgpt.settings import *
 
 import torch
 from torch import nn, optim
+from torch.utils.data import DataLoader
 
 import numpy as np
-import time, pickle
+import time, pickle, wandb
 from typing import List
 from pathlib import Path
 
 
 class Trainer():
 
-    def __init__(self, model: MichelTransformer, tokenizer: Tokenizer, optimizer=None):
+    def __init__(
+            self, 
+            model: MichelTransformer, 
+            tokenizer: Tokenizer = Tokenizer(), 
+            optimizer=None, 
+            padding_token=1,
+            device: torch.device = DEVICE
+        ):
         super().__init__()
 
         self.time = .0
@@ -39,8 +47,9 @@ class Trainer():
 
         self.max_sequence_length = self.model.max_content
         self.softmax = nn.Softmax(dim=-1)
-        self.loss_function = nn.CrossEntropyLoss()
+        self.loss_function = nn.CrossEntropyLoss(ignore_index=padding_token)
 
+        self.device = device
         self.metrics = {
             "time": [],
             "iter": [],
@@ -52,6 +61,17 @@ class Trainer():
             "val_loss": [],
             "best_val_loss": []
         }
+
+        if SAVE_ON_WANDB:
+            wandb.init(
+                project="michel-gpt-training",
+                config={
+                    "learning_rate": self.optimizer.learning_rate,
+                    "architecture": "Transformer",
+                    "dataset": "many",
+                    "epochs": WARMUP_ITERS
+                }
+            )
 
     def save_metrics(self) -> None:
 
@@ -113,60 +133,67 @@ class Trainer():
         return probabilities
     
 
-    def forward(self, x, mask):
-        """
-        Autoregressive forward pass
-        """
-        inp, target = x[:, :-1], x[:, 1:]
-        mask = mask[:, :-1]
+    # def forward(self, x, mask):
+    #     """
+    #     Autoregressive forward pass
+    #     """
+    #     inp, target = x[:, :-1], x[:, 1:]
+    #     mask = mask[:, :-1]
 
-        output = self.model(inp, mask)
-        return output, target
+    #     output = self.model(inp, mask)
+    #     return output, target
     
 
     def find_previous_session(self):
         pass
 
 
-    def fit(self, train_set: Dataset, test_set: Dataset, batch_size: int):
+    def fit(self, dataset: Dataset, batch_size: int):
         self.time = time.time()
+
+        train_set = DataLoader(
+            dataset=dataset.trainset,
+            batch_size=batch_size,
+            shuffle=True
+        )
+        val_set = DataLoader(
+            dataset.valset,
+            batch_size=batch_size,
+            shuffle=True
+        )
+        test_set = DataLoader(
+            dataset.testset,
+            batch_size=batch_size,
+            shuffle=True
+        ) if dataset.testset else val_set
 
         while True:
             losses = []
 
-            batches = []
             for _, batch in enumerate(train_set, 0):
-                sequence_tensor = torch.tensor(data[i: i + batch_size], dtype=torch.long)
+                
+                x, y = batch
+                x = x.to(DEVICE)
+                y = y.to(DEVICE)
 
-                mask = torch.ones_like(sequence_tensor)
-                mask[sequence_tensor == self.tokenizer.character_to_token('<pad>')] = 0
+                mask = torch.ones_like(batch).to(DEVICE)
 
-                batches.append((sequence_tensor, mask))
-
-
-                input_tensor = torch.zeros((batch_size, self.model.max_content + 1), dtype=torch.long)
-                mask = torch.zeros((batch_size, self.model.max_content + 1), dtype=torch.long)
-
-                for i, input_entry in enumerate(batch[0]):
-                    input_tensor[i] = input_entry
-
-                for i, mask_entry in enumerate(batch[1]):
-                    mask[i] = mask_entry
-
-                model_output, target = self.forward(x=input_tensor, mask=mask)
-
-                loss = self.loss_function(model_output.transpose(1, 2), target)
+                pred = self.model(x=x, mask=mask)
+                loss = self.loss_function(y, pred)
 
                 loss.backward()
 
-                nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
 
-                self.optimizer.iter()
+            self.model.clean_nan()
 
-                self.optimizer.zero_grad()
+            nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
+            self.optimizer.step()
+            self.optimizer.zero_grad(set_to_none=True)
 
-                losses.append(loss.item())
+            losses.append(loss.item())
 
             epoch_loss = np.average(losses)
-            self.loss.append(epoch_loss)
-            print('iter:', self.iter, 'Loss:', epoch_loss)
+            self.losses.append(epoch_loss)
+
+            if self.iter % VALIDATION_STEP == 0:
+                pass

@@ -119,6 +119,39 @@ Don't forget to give the project a star! Thanks again!
 5. Open a Pull Request -->
 
 
+## Data
+
+<table>
+	<thead>
+		<tr>
+			<th align="center">Source</th>
+			<th align="center">Documents</th>
+			<th align="center">Tokens</th>
+			<th align="center">Ratio</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td align="left"><b><a href="https://wikipedia.org/">Wikipedia</a></b></td>
+			<td align="center">-</td>
+			<td align="center">-</td>
+			<td align="center">-</td>
+		</tr>
+		<tr>
+			<td align="left"><b><a href="https://huggingface.co/datasets/Skylion007/openwebtext">OpenWebText</a></b></td>
+			<td align="center">-</td>
+			<td align="center">-</td>
+			<td align="center">-</td>
+		</tr>
+		<tr>
+			<th align="left">Total</th>
+			<th align="center">-</th>
+			<th align="center">-</th>
+			<th align="center">100.00 %</th>
+		</tr>
+	</tbody>
+</table>
+
 <!-- Sources -->
 ## Sources
 

@@ -1,4 +1,5 @@
 import torch
+import os
 from pathlib import Path
 
 # ----------- PROCESSOR -----------
@@ -10,6 +11,8 @@ if MPS_AVAILABLE:
     torch.mps.set_per_process_memory_fraction(0.)
 DEVICE_NAME = "cuda" if CUDA_AVAILABLE else "mps" if MPS_AVAILABLE else "cpu"
 DEVICE = torch.device(DEVICE_NAME)
+
+NUM_THREADS = os.cpu_count() # 16
 
 # ------------- DATA -------------
 
@@ -43,6 +46,7 @@ TOKEN_SPLIT_PATTERN = r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\
 
 SAVE_ON_DRIVE = True
 DRIVE_FILE = ""
+SAVE_ON_WANDB = True
 
 # ------------- MODEL -------------
 
@@ -68,7 +72,6 @@ FLASH_ATTENTION = False # TODO: Not implemented
 # ------------- TRAIN -------------
 
 BATCH_SIZE = 128
-NUM_THREADS = 16
 PRETRAINING_VAL_RATIO = 1e-3
 
 MAX_LEARNING_RATE = 6e-4
@@ -83,3 +86,4 @@ BETA_2 = .95
 
 EPSILON = 1e-8
 
+VALIDATION_STEP = 50
