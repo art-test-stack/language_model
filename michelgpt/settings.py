@@ -16,7 +16,9 @@ NUM_THREADS = os.cpu_count() # 16
 
 # ------------- DATA -------------
 
-class CONTROL_TOKENS:
+IS_TIKTOKEN = False # TODO: parse as arg
+
+class CUSTOM_CONTROL_TOKENS:
     unknown = '⮜unknown⮞'
     padding = '⮜padding⮞'
     start_of_text = '⮜start-of-text⮞' 
@@ -27,6 +29,21 @@ class CONTROL_TOKENS:
     user = '⮜user⮞' 
     assistant = '⮜assistant⮞' 
     end_of_text = '⮜end-of-text⮞'
+
+
+class TIKTOKEN_CONTROL_TOKENS:
+    unknown = '<|unknown|>'
+    padding = '<|padding|>'
+    start_of_text = '<|startoftext|>'
+    tab = '<|tab|>'
+    new_line = '<|new_line|>'
+    human = '<|human|>'
+    system = '<|system|>'
+    user = '<|user|>'
+    assistant = '<|assistant|>'
+    end_of_text = '<|endoftext|>'
+
+CONTROL_TOKENS = TIKTOKEN_CONTROL_TOKENS if not IS_TIKTOKEN else CUSTOM_CONTROL_TOKENS
 
 CONTROL_TOKENS_LIST = list(CONTROL_TOKENS.__dict__.values())[1:-3]
 FORCED_TOKENS = ["AI"]
