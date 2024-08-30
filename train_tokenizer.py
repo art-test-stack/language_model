@@ -24,4 +24,5 @@ def main():
 
 if __name__ == "__main__":
     print("Use custom Tokenization")
+    # To clear cache: rm -rf ~/.cache/huggingface/datasets/
     main()
