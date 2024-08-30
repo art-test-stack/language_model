@@ -3,7 +3,7 @@ from michelgpt.data.tokenizer import Tokenizer
 from michelgpt.settings import *
 
 import torch
-from torch.utils.data.dataset import Dataset
+from torch.utils.data.dataset import Dataset as TorchDataset
 
 from datasets import Dataset as Datasets
 
@@ -14,69 +14,28 @@ import pickle
 from tqdm import tqdm
 from typing import Tuple
 from enum import Enum
-
-
-class DatasetMode(Enum):
-    TRAIN = "train"
-    VAL = "val"
-    TEST = "test"
-
-
-class TokenizedDataset(Dataset):
-    def __init__(self,
-        dataset: Datasets,
-        mode: DatasetMode = DatasetMode.TRAIN,
-        max_content: int = MAX_CONTEXT,
-        verbose: bool = True
-    ) -> None:
-        super().__init__()
-        self.mode = mode
-        self.max_content = max_content
-        self._adapt_sequences_to_max_content(dataset, verbose)
-
-    def _adapt_sequences_to_max_content(self, dataset, verbose: bool = True) -> None:
-        adapted_data = []
-        self.meta_data = []
-        for id, tkn_data in enumerate(tqdm(dataset, desc=f"Create tokenized {self.mode} set", disable=not verbose)):
-            self.meta_data.append({"raw_id": id, "id_range": [id, id + len(tkn_data) - self.max_content - 1]})
-            for i in range(0, len(tkn_data) - self.max_content - 1):
-                adapted_data.append(tkn_data[i: i + self.max_content + 1])
-
-        self.data = torch.Tensor(adapted_data)
-
-    def __getitem__(self, index: int | None = None) -> Tuple[torch.Tensor, torch.Tensor]:
-        assert self.data == None, "No data"
-        if index == None:
-            index = np.random.randint(len(self.data))
-        # text_encoded = torch.Tensor(Tokenizer().encode(self.data[index], verbose=False))
-        
-        x, y = self.data[:, :-1], self.data[:, 1:]
-        return x, y
-
-    def __len__(self) -> int:
-        return len(self.data)
     
 
 class Dataset():
 
     def __init__(
-        self,
-        name: str = "",
-        # dataset: Datasets | None = None,
-        multiplier: int | float = 4,
-    ) -> None:
+            self,
+            name: str = "",
+            # dataset: Datasets | None = None,
+            folder: Path = DATA_FOLDER, 
+            multiplier: int | float = 4,
+        ) -> None:
+
         # self.training_part = ''
         self.name = name
-        
+        self.folder = folder
+
         self.multiplier = float(multiplier)
         self.train_part = ""
         self.sizes = { "train": 0, "val": 0, "test": 0}
 
         self.dataset: Datasets = None
 
-        self.trainset: TokenizedDataset = None
-        self.valset: TokenizedDataset = None
-        self.testset: TokenizedDataset = None
         
     def get_document(self, index: int | None = None):
         assert self.dataset == None, "No data"
@@ -110,7 +69,7 @@ class Dataset():
             })
             total += doc['size']
             
-        with open(DATA_FOLDER.joinpath(self.train_part).joinpath(self.name).joinpath(f'{split}_ids.pkl'), 'wb') as file:
+        with open(self.folder.joinpath(self.train_part).joinpath(self.name).joinpath(f'{split}_ids.pkl'), 'wb') as file:
             pickle.dump(ids, file)
 
         batch_size = 1_024
@@ -119,7 +78,7 @@ class Dataset():
             batch_size //= 2
             
         self.sizes[split] = int(np.sum(len(documents), dtype = np.uint64))
-        path = DATA_FOLDER.joinpath(self.train_part).joinpath(self.name).joinpath(f'{split}.bin')
+        path = self.folder.joinpath(self.train_part).joinpath(self.name).joinpath(f'{split}.bin')
         file = np.memmap(path, dtype = np.uint16, mode = 'w+', shape = (self.sizes[split],))
         
         i = 0
@@ -134,10 +93,7 @@ class Dataset():
 
         file.flush()
         
-        self.trainset = TokenizedDataset(tokenized["train"], mode=DatasetMode.TRAIN, verbose=verbose)
-        self.valset = TokenizedDataset(tokenized["val"], mode=DatasetMode.VAL, verbose=verbose) if "val" in tokenized.keys() else None
-        self.testset = TokenizedDataset(tokenized["test"], mode=DatasetMode.TEST, verbose=verbose) if "test" in tokenized.keys() else None
-        
+        self.tokenized = tokenized
         with open(DATA_FOLDER.joinpath(self.train_part, self.name, f'metadata.pkl'), 'wb') as file:
             pickle.dump({
                 'training_part': self.train_part,

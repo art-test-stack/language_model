@@ -156,8 +156,8 @@ class Tokenizer:
         self.to_token = { idx: tok for idx, tok in self.to_token.items() if is_valid(tok) }
         self.to_index = { tok: idx for idx, tok in self.to_token.items() }
 
-    def sort_vocab(self):
 
+    def sort_vocab(self):
         self.to_token = dict(sorted({ int(idx): tok for tok, idx in self.to_index.items()}.items()))
         self.to_index = { t: i for i, t in self.to_token.items() }
         self.save_vocab()
