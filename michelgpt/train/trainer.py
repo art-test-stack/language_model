@@ -2,7 +2,7 @@ from michelgpt.train.model import MichelTransformer
 from michelgpt.train.optimizer import AdamW
 
 from michelgpt.data.datasets.dataset import Dataset
-from michelgpt.data.tokenizer_custom import Tokenizer
+from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
 
 from michelgpt.settings import *
 
@@ -12,9 +12,12 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 import time, pickle, wandb
-from typing import List
+from typing import Any
 from pathlib import Path
 
+class TrainerMetrics:
+    def __init__(self) -> None:
+        pass
 
 class Trainer():
 
@@ -22,8 +25,8 @@ class Trainer():
             self, 
             model: MichelTransformer, 
             tokenizer: Tokenizer = Tokenizer(), 
-            optimizer=None, 
-            padding_token=1,
+            optimizer: optim.Optimizer | Any = None, 
+            padding_token: int = 1,
             device: torch.device = DEVICE
         ):
         super().__init__()
@@ -73,6 +76,7 @@ class Trainer():
                 }
             )
 
+
     def save_metrics(self) -> None:
 
         self.metrics['time'].append(time.time() - self.time)
@@ -90,6 +94,7 @@ class Trainer():
 
         pickle.dump(self.metrics, open(OUTPUT_FOLDER.joinpath('metrics.pkl'), 'wb'))
         self.time = time.time()
+
 
     def load_metrics(self, path: Path) -> None:
         if not path.exists():
@@ -115,6 +120,7 @@ class Trainer():
         if SAVE_ON_DRIVE:
             pass
 
+
     def load_model(self, path: Path) -> None:
         if not path.exists():
             return
@@ -133,21 +139,10 @@ class Trainer():
         return probabilities
     
 
-    # def forward(self, x, mask):
-    #     """
-    #     Autoregressive forward pass
-    #     """
-    #     inp, target = x[:, :-1], x[:, 1:]
-    #     mask = mask[:, :-1]
-
-    #     output = self.model(inp, mask)
-    #     return output, target
-    
-
     def find_previous_session(self):
         pass
 
-
+    
     def fit(self, dataset: Dataset, batch_size: int):
         self.time = time.time()
 
@@ -161,11 +156,6 @@ class Trainer():
             batch_size=batch_size,
             shuffle=True
         )
-        test_set = DataLoader(
-            dataset.testset,
-            batch_size=batch_size,
-            shuffle=True
-        ) if dataset.testset else val_set
 
         while True:
             losses = []
@@ -196,4 +186,12 @@ class Trainer():
             self.losses.append(epoch_loss)
 
             if self.iter % VALIDATION_STEP == 0:
-                pass
+                self._validation_step(val_set)
+
+
+    def _training_step(self):
+        pass
+
+
+    def _validation_step(self, val_set: Dataset):
+        pass

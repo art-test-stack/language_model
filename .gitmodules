@@ -1,0 +1,3 @@
+[submodule "michelgpt/data/tokenizer"]
+	path = michelgpt/data/tokenizer
+	url = git@github.com:art-test-stack/tokenizer.git

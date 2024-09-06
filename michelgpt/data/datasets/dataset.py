@@ -1,5 +1,5 @@
 from michelgpt.data.clean import *
-from michelgpt.data.tokenizer import Tokenizer
+from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
 from michelgpt.settings import *
 
 import torch
