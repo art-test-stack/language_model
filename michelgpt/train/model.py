@@ -1,6 +1,8 @@
-from michelgpt.settings import *
+from michelgpt.train.arg import ModelArgs
 from michelgpt.train.layers import *
 from michelgpt.train.module import Module
+
+from michelgpt.settings import *
 
 import torch.nn as nn
 
@@ -8,7 +10,7 @@ import torch.nn as nn
 class Decoder(Module):
     def __init__(
             self, 
-            vocab_size: int = VOCAB_SIZE,
+            int = VOCAB_SIZE,
             dim_model: int = DIM_MODEL,
             dim_ffn: int = DIM_FFN,
             n_layers: int = NUM_LAYERS, 
@@ -49,43 +51,41 @@ class Decoder(Module):
 class MichelTransformer(Module):
     def __init__(
             self,
-            vocab_size: int = VOCAB_SIZE,
-            dim_model: int = DIM_MODEL,
-            n_layers: int = NUM_LAYERS, 
-            n_heads: int = NUM_HEADS,
-            d_head: int = DIM_HEAD,
-            dropout: float = DROPOUT,
-            padding_idx: int = 0,
-            max_content: int = MAX_CONTEXT
+            args = ModelArgs()
         ) -> None:
         super().__init__()
-
-        self.vocab_size = vocab_size
-        self.padding_idx = padding_idx
-        self.max_content = max_content
+        self.args = args
+        self.vocab_size = args.vocab_size
+        self.padding_idx = args.padding_idx
+        self.max_content = args.max_content
         # TODO: Will change to customed embedding
         self.embedding = nn.Embedding(
-            num_embeddings=vocab_size, 
-            embedding_dim=dim_model, 
-            padding_idx=padding_idx
+            num_embeddings = args.vocab_size, 
+            embedding_dim = args.dim, 
+            padding_idx = args.padding_idx
         )
-        self.pos_enc = PositionalEncoding(dim_model, max_content)
+        self.pos_enc = PositionalEncoding(args.dim, args.max_content)
 
         self.decoder_stack = Decoder(
-            vocab_size=vocab_size,
-            dim_model=dim_model,
-            n_layers=n_layers,
-            n_heads=n_heads,
-            d_head=d_head,
-            dropout=dropout
+            vocab_size=args.vocab_size,
+            dim_model=args.dim,
+            n_layers=args.n_layers,
+            n_heads=args.n_heads,
+            d_head=args.d_head,
+            dropout=args.dropout
         )
         
-        self.model_head = Linear(dim_model, vocab_size, bias=False)
+        self.model_head = Linear(args.dim, args.vocab_size, bias=False)
 
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p) 
 
+    def init_weights(self) -> None:
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+                
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         mask = self.get_pad_mask(x)
 

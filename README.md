@@ -159,6 +159,7 @@ Don't forget to give the project a star! Thanks again!
 2. [Building a text generation model from scratch by Vincent Bons](https://wingedsheep.com/building-a-language-model/)
 3. [nanoGPT by Andrej Karpathy](https://github.com/karpathy/nanoGPT/tree/master) 
 4. [Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)
+5. [Training language models to follow instructions with human feedback](https://arxiv.org/abs/2203.02155)
 
 <!-- LICENSE -->
 ## License

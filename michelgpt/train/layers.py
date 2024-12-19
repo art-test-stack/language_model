@@ -17,7 +17,7 @@ class Linear(nn.Linear, Module):
             device: torch.device = DEVICE, 
             dtype=None
         ) -> None:
-        super(Linear, self).__init__(in_features=in_features, out_features=out_features, bias=bias, device=device)
+        super().__init__(in_features=in_features, out_features=out_features, bias=bias, device=device)
         # TODO: Reparametrize weights and bias here
 
 
@@ -98,7 +98,7 @@ class MultiHeadAttention(Module):
         self.w_k = Linear(dim_model, d_head * n_heads, bias=False) 
         self.w_v = Linear(dim_model, d_head * n_heads, bias=False)
 
-        self.attention = AttentionBlock()
+        self.w_o = AttentionBlock()
 
     def forward(self, x: torch.Tensor, mask=None):
         n_heads = self.n_heads
@@ -118,7 +118,7 @@ class MultiHeadAttention(Module):
         if mask is not None:
             mask = mask.unsqueeze(1)  
         
-        output, attention = self.attention(q, k, v, mask=mask)
+        output, attention = self.w_o(q, k, v, mask=mask)
         output = output.transpose(1, 2).contiguous().view(batch_size, d_head, -1)
         return output, attention
 
@@ -132,20 +132,20 @@ class FeedForward(Module):
             dropout: float = DROPOUT
         ) -> None:
         super().__init__()
-        self.layer_1 = Linear(d_in, d_latent, dropout)
+        self.w_1 = Linear(d_in, d_latent, dropout)
         self.activation = nn.ReLU()
-        self.layer_2 = Linear(d_latent, d_in, dropout)
+        self.w_2 = Linear(d_latent, d_in, dropout)
         self.dropout = nn.Dropout(DROPOUT)
         self.layer_norm = nn.LayerNorm(d_in, eps=1e-6)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output = self.layer_2(self.activation(self.layer_1(x)))
+        h = self.w_2(self.activation(self.w_1(x)))
 
         if self.training:
-            output = self.dropout(output)
+            h = self.dropout(h)
             
-        output += x
-        output = self.layer_norm(output)
+        h += x
+        output = self.layer_norm(h)
         return output
     
 
@@ -160,7 +160,7 @@ class DecoderLayer(Module):
             dropout: float = DROPOUT
         ) -> None:
         super().__init__()
-        self.self_attention = MultiHeadAttention(
+        self.attention = MultiHeadAttention(
             dim_model=dim_model, n_heads=n_heads, d_head=d_head
         )
         
@@ -171,14 +171,13 @@ class DecoderLayer(Module):
 
     def forward(self, x, self_attention_mask=None,):
         
-        output, self_attention = self.self_attention(x, mask=self_attention_mask)
+        h, self_attention = self.attention(x, mask=self_attention_mask)
 
         if self.training:
-            output = self.dropout(output) 
-
-        output += x
-        output = self.layer_norm(output)
-        output = self.ffn(output)
+            h = self.dropout(h) 
+        h += x
+        h = self.layer_norm(h)
+        output = h + self.ffn(h)
 
         return output, self_attention
 

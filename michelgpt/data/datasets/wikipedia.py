@@ -16,7 +16,7 @@ class WikipediaDataset(Dataset):
         
         wikipedia = load_dataset(
             path = 'wikipedia',
-            name='20220301.en',
+            name = '20220301.en',
             download_config = DownloadConfig(max_retries = 10)
         )["train"]
         
