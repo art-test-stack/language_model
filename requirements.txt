@@ -67,3 +67,5 @@ wcwidth==0.2.13
 wheel==0.43.0
 xxhash==3.4.1
 yarl==1.9.4
+unidecode
+tokenizers

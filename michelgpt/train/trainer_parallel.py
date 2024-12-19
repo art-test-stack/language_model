@@ -1,3 +1,4 @@
+from michelgpt.train.trainer import Trainer
 from michelgpt.train.arg import ModelArgs
 from michelgpt.train.model import MichelTransformer
 from michelgpt.train.optimizer import AdamW
@@ -44,6 +45,7 @@ if not verify_min_gpu_count(min_gpus=_min_gpu_count):
 class ParallelTrainer:
     
     def __init__(
+            self,
             model: MichelTransformer,
             tokenizer: Tokenizer = Tokenizer(), 
             optimizer: optim.Optimizer | Callable = None, 
@@ -51,21 +53,21 @@ class ParallelTrainer:
             device: torch.device = DEVICE
         ):
         tp_size = 2
-        logger = get_logger()
+        self.logger = get_logger()
 
         # understand world topology
-        _rank = int(os.environ["RANK"])
-        _world_size = int(os.environ["WORLD_SIZE"])
+        self._rank = int(os.environ["RANK"])
+        self._world_size = int(os.environ["WORLD_SIZE"])
 
 
-        print(f"Starting PyTorch 2D (FSDP + TP) example on rank {_rank}.")
+        print(f"Starting PyTorch 2D (FSDP + TP) example on rank {self._rank}.")
         assert (
-            _world_size % tp_size == 0
-        ), f"World size {_world_size} needs to be divisible by TP size {tp_size}"
+            self._world_size % tp_size == 0
+        ), f"World size {self._world_size} needs to be divisible by TP size {tp_size}"
 
 
         # create a sharding plan based on the given world_size.
-        dp_size = _world_size // tp_size
+        dp_size = self._world_size // tp_size
 
         # Create a device mesh with 2 dimensions.
         # First dim is the data parallel dimension
@@ -80,17 +82,14 @@ class ParallelTrainer:
         # while for SP, input can be different across all ranks.
         # We will use dp_rank for setting the random seed
         # to mimic the behavior of the dataloader.
-        dp_rank = dp_mesh.get_local_rank()
+        self.dp_rank = dp_mesh.get_local_rank()
 
         # create model and move it to GPU - init"cuda"_mesh has already mapped GPU ids.
-        simple_config = ModelArgs(dim=256, n_layers=2, n_heads=16, vocab_size=32000)
+        simple_config = ModelArgs()
 
         model = MichelTransformer(simple_config).cuda()
-
-        # init model weights
         model.init_weights()
 
-        # parallelize the first embedding and the last linear out projection
         model = parallelize_module(
             model,
             tp_mesh,
@@ -128,13 +127,10 @@ class ParallelTrainer:
                 "ffn.w_2": ColwiseParallel(),
                 "ffn.layer_norm": RowwiseParallel(output_layouts=Shard(1)),
             }
-
-            # Adjust attention module to use the local number of heads
             attn_layer = transformer_block.attention
             attn_layer.n_heads = attn_layer.n_heads // tp_mesh.size()
             attn_layer.d_heads = attn_layer.d_heads // tp_mesh.size()
 
-            # Custom parallelization plan for the model
             parallelize_module(
                 module=transformer_block,
                 device_mesh=tp_mesh,
@@ -142,30 +138,24 @@ class ParallelTrainer:
             )
 
         # Init FSDP using the dp device mesh
-        sharded_model = FSDP(model, device_mesh=dp_mesh, use_orig_params=True)
+        self.model = FSDP(model, device_mesh=dp_mesh, use_orig_params=True)
 
-        rank_log(_rank, logger, f"Model after parallelization {sharded_model=}\n")
+        rank_log(self._rank, self.logger, f"Model after parallelization {self.model=}\n")
+        self.trainer = Trainer(model=self.model, tokenizer=tokenizer, optimizer=optimizer, padding_token=padding_token, device=device)
 
+    def fit(self):
         # Create an optimizer for the parallelized and sharded model.
         lr = 3e-3
-        rank_log(_rank, logger, f"Creating AdamW optimizer with learning rate {lr}")
-        optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
+        rank_log(self._rank, self.logger, f"Creating AdamW optimizer with learning rate {lr}")
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, foreach=True)
 
         # Training loop:
         # Perform a num of iterations of forward/backward
         # and optimizations for the sharded module.
-        rank_log(_rank, logger, "\nStarting 2D training...")
-        num_iterations = 10
-        batch_size = 2
+        rank_log(self._rank, self.logger, "\nStarting 2D training...")
 
-        for i in range(num_iterations):
-            # seeding with dp_rank to ensure identical inputs for TP groups
-            torch.manual_seed(i + dp_rank)
-            inp = torch.randint(32000, (8, 256), device="cuda")
+        # seeding with dp_rank to ensure identical inputs for TP groups
+        
+        # rank_log(self._rank, self.logger, f"2D iter {i} complete")
 
-            output = sharded_model(inp)
-            output.sum().backward()
-            optimizer.step()
-            rank_log(_rank, logger, f"2D iter {i} complete")
-
-        rank_log(_rank, logger, "2D training successfully completed!")
+        rank_log(self._rank, self.logger, "2D training successfully completed!")

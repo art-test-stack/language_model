@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 import time, pickle, wandb
-from typing import Any
+from typing import Callable
 from pathlib import Path
 
 class TrainerMetrics:
@@ -25,7 +25,7 @@ class Trainer():
             self, 
             model: MichelTransformer, 
             tokenizer: Tokenizer = Tokenizer(), 
-            optimizer: optim.Optimizer | Any = None, 
+            optimizer: optim.Optimizer | Callable = None, 
             padding_token: int = 1,
             device: torch.device = DEVICE
         ):
@@ -45,7 +45,7 @@ class Trainer():
         if optimizer is None:
             self.optimizer = AdamW(model.parameters())
         else:
-            self.optimizer = optimizer
+            self.optimizer = optimizer(model.parameters())
         self.tokenizer = tokenizer
 
         self.max_sequence_length = self.model.max_content
