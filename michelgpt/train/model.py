@@ -9,8 +9,7 @@ import torch.nn as nn
 
 class Decoder(Module):
     def __init__(
-            self, 
-            int = VOCAB_SIZE,
+            self,
             dim_model: int = DIM_MODEL,
             dim_ffn: int = DIM_FFN,
             n_layers: int = NUM_LAYERS, 
@@ -67,7 +66,6 @@ class MichelTransformer(Module):
         self.pos_enc = PositionalEncoding(args.dim, args.max_content)
 
         self.decoder_stack = Decoder(
-            vocab_size=args.vocab_size,
             dim_model=args.dim,
             n_layers=args.n_layers,
             n_heads=args.n_heads,

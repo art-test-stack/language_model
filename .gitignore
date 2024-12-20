@@ -1,5 +1,6 @@
 run.ipynb
 
+jobs/
 /data/*
 !/data/README.md
 !/data/drive

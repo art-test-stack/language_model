@@ -30,7 +30,6 @@ class CUSTOM_CONTROL_TOKENS:
     assistant = '⮜assistant⮞' 
     end_of_text = '⮜end-of-text⮞'
 
-
 class TIKTOKEN_CONTROL_TOKENS:
     unknown = '<|unknown|>'
     padding = '<|padding|>'
@@ -42,6 +41,7 @@ class TIKTOKEN_CONTROL_TOKENS:
     user = '<|user|>'
     assistant = '<|assistant|>'
     end_of_text = '<|endoftext|>'
+
 
 CONTROL_TOKENS = TIKTOKEN_CONTROL_TOKENS if not IS_TIKTOKEN else CUSTOM_CONTROL_TOKENS
 

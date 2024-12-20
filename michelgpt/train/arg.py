@@ -1,11 +1,11 @@
-from settings import *
+from michelgpt.settings import *
 
 class ModelArgs:
     def __init__(
             self,
             vocab_size: int = VOCAB_SIZE,
             dim: int = DIM_MODEL,
-            n_layers: int = NUM_LAYERS, 
+            n_layers: int = NUM_LAYERS,
             n_heads: int = NUM_HEADS,
             d_head: int = DIM_HEAD,
             dropout: float = DROPOUT,

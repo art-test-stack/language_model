@@ -2,7 +2,8 @@ from michelgpt.train.model import MichelTransformer
 from michelgpt.train.optimizer import AdamW
 
 from michelgpt.data.datasets.dataset import Dataset
-from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
+# from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
+from michelgpt.data.tok import TikTokenizer as Tokenizer
 
 from michelgpt.settings import *
 
@@ -11,7 +12,8 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 
 import numpy as np
-import time, pickle, wandb
+import time, pickle
+# import time, pickle, wandb
 from typing import Callable
 from pathlib import Path
 
@@ -65,16 +67,16 @@ class Trainer():
             "best_val_loss": []
         }
 
-        if SAVE_ON_WANDB:
-            wandb.init(
-                project="michel-gpt-training",
-                config={
-                    "learning_rate": self.optimizer.learning_rate,
-                    "architecture": "Transformer",
-                    "dataset": "many",
-                    "epochs": WARMUP_ITERS
-                }
-            )
+        # if SAVE_ON_WANDB:
+        #     wandb.init(
+        #         project="michel-gpt-training",
+        #         config={
+        #             "learning_rate": self.optimizer.learning_rate,
+        #             "architecture": "Transformer",
+        #             "dataset": "many",
+        #             "epochs": WARMUP_ITERS
+        #         }
+        #     )
 
 
     def save_metrics(self) -> None:

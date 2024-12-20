@@ -4,7 +4,8 @@ from michelgpt.train.model import MichelTransformer
 from michelgpt.train.optimizer import AdamW
 
 from michelgpt.data.datasets.dataset import Dataset
-from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
+# from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
+from michelgpt.data.tok import TikTokenizer as Tokenizer
 from michelgpt.utils import get_logger, rank_log, verify_min_gpu_count
 from michelgpt.settings import *
 
@@ -25,14 +26,10 @@ from torch.distributed.tensor.parallel import (
     PrepareModuleInput,
     SequenceParallel
 )
+from torch.distributed._tensor.device_mesh import init_device_mesh
 
 from typing import Callable
 
-# def verify_min_gpu_count(min_gpus: int = 2) -> bool:
-#     """ verification that we have at least 2 gpus to run dist examples """
-#     has_cuda = torch.cuda.is_available()
-#     gpu_count = torch.cuda.device_count()
-#     return has_cuda and gpu_count >= min_gpus
 
 # ---- GPU check ------------
 _min_gpu_count = 4
@@ -42,24 +39,27 @@ if not verify_min_gpu_count(min_gpus=_min_gpu_count):
     sys.exit()
 # ---------------------------
 
-class ParallelTrainer:
+class FSDPTrainer:
     
     def __init__(
             self,
-            model: MichelTransformer,
+            model: MichelTransformer = MichelTransformer(),
             tokenizer: Tokenizer = Tokenizer(), 
             optimizer: optim.Optimizer | Callable = None, 
             padding_token: int = 1,
             device: torch.device = DEVICE
         ):
+        print(f"GPU COUNT = {torch.cuda.device_count()}")
         tp_size = 2
         self.logger = get_logger()
 
-        # understand world topology
-        self._rank = int(os.environ["RANK"])
         self._world_size = int(os.environ["WORLD_SIZE"])
 
+        # device_mesh = init_device_mesh(device_type="cuda", mesh_shape=(self._world_size,))
+        # self._rank = device_mesh.get_rank()
+        self._rank = int(os.environ["RANK"])
 
+        print(f"{self._world_size}")
         print(f"Starting PyTorch 2D (FSDP + TP) example on rank {self._rank}.")
         assert (
             self._world_size % tp_size == 0
@@ -116,7 +116,7 @@ class ParallelTrainer:
                 "attention.w_q": ColwiseParallel(),
                 "attention.w_k": ColwiseParallel(),
                 "attention.w_v": ColwiseParallel(),
-                "attention.w_o": RowwiseParallel(output_layouts=Shard(1)),
+                # "attention.w_o": RowwiseParallel(output_layouts=Shard(1)),
                 # "dropout": SequenceParallel(),
                 "layer_norm": SequenceParallel(),
                 "ffn": PrepareModuleInput(
@@ -124,12 +124,14 @@ class ParallelTrainer:
                     desired_input_layouts=(Replicate(),),
                 ),
                 "ffn.w_1": ColwiseParallel(),
-                "ffn.w_2": ColwiseParallel(),
-                "ffn.layer_norm": RowwiseParallel(output_layouts=Shard(1)),
+                "ffn.w_2": RowwiseParallel(output_layouts=Shard(1)),
+                # "ffn.w_2": ColwiseParallel(),
+                "ffn.layer_norm": SequenceParallel(),
+                # "ffn.layer_norm": RowwiseParallel(output_layouts=Shard(1)),
             }
             attn_layer = transformer_block.attention
             attn_layer.n_heads = attn_layer.n_heads // tp_mesh.size()
-            attn_layer.d_heads = attn_layer.d_heads // tp_mesh.size()
+            attn_layer.d_head = attn_layer.d_head // tp_mesh.size()
 
             parallelize_module(
                 module=transformer_block,
