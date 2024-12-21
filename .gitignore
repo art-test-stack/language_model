@@ -1,6 +1,8 @@
 run.ipynb
+.env
 
 jobs/
+logs/
 /data/*
 !/data/README.md
 !/data/drive

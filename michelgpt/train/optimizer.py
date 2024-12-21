@@ -11,7 +11,8 @@ class AdamW(optim.AdamW):
             lr: float | Tensor = MAX_LEARNING_RATE,
             eps: float = EPSILON,
             weight_decay: float = WEIGHT_DECAY,
-            fused: bool | None = None
+            fused: bool | None = None,
+            **kwargs
         ) -> None:
         super().__init__(
             params,
@@ -19,7 +20,8 @@ class AdamW(optim.AdamW):
             betas=(BETA_1, BETA_2),
             weight_decay=weight_decay,
             eps=eps,
-            fused=fused
+            fused=fused,
+            **kwargs
         )
 
     def update_learning_rate(self, iter):

@@ -45,8 +45,23 @@ class Dataset():
         
         return CONTROL_TOKENS.start_of_text + clean_string(self.dataset[index]["text"]) + CONTROL_TOKENS.end_of_text
     
-    def document_to_tokens(self, document: dict[str, str], tokenizer: Tokenizer = Tokenizer()) -> dict[str, npt.NDArray[np.uint16] | int]:
-        tokens = [tokenizer.to_index[CONTROL_TOKENS.start_of_text], *tokenizer.encode(document['text'], verbose=False), tokenizer.to_index[CONTROL_TOKENS.end_of_text]]
+    def document_to_tokens(
+            self, 
+            document: dict[str, str], 
+            tokenizer: Tokenizer = Tokenizer()
+        ) -> dict[str, npt.NDArray[np.uint16] | int]:
+        try:
+            tokens = [
+                tokenizer.special_tokens[CONTROL_TOKENS.start_of_text], 
+                *tokenizer.encode(document['text'], verbose=False), 
+                tokenizer.special_tokens[CONTROL_TOKENS.end_of_text]
+            ]
+        except:
+            tokens = [
+            tokenizer.encode(CONTROL_TOKENS.start_of_text)[0], 
+            *tokenizer.encode(document['text'], verbose=False), 
+            tokenizer.encode(CONTROL_TOKENS.end_of_text)[0]
+        ]
         return {'tokens': np.array(tokens, dtype = np.uint16), 'size': len(tokens)}
     
     def save(self, tokenizer: Tokenizer = Tokenizer(), verbose: bool = True) -> None:

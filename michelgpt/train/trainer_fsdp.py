@@ -4,6 +4,7 @@ from michelgpt.train.model import MichelTransformer
 from michelgpt.train.optimizer import AdamW
 
 from michelgpt.data.datasets.dataset import Dataset
+from michelgpt.data.datasets.wikipedia import WikipediaDataset
 # from michelgpt.data.tokenizer.models import HGFBPETokenizer as Tokenizer
 from michelgpt.data.tok import TikTokenizer as Tokenizer
 from michelgpt.utils import get_logger, rank_log, verify_min_gpu_count
@@ -142,18 +143,24 @@ class FSDPTrainer:
         # Init FSDP using the dp device mesh
         self.model = FSDP(model, device_mesh=dp_mesh, use_orig_params=True)
 
+        self.optimizer = AdamW(self.model.parameters(), foreach=True)
         rank_log(self._rank, self.logger, f"Model after parallelization {self.model=}\n")
-        self.trainer = Trainer(model=self.model, tokenizer=tokenizer, optimizer=optimizer, padding_token=padding_token, device=device)
+        self.trainer = Trainer(
+            model=self.model, 
+            tokenizer=tokenizer, 
+            optimizer=optimizer, 
+            padding_token=padding_token, 
+            device=device
+        )
 
     def fit(self):
         # Create an optimizer for the parallelized and sharded model.
-        lr = 3e-3
-        rank_log(self._rank, self.logger, f"Creating AdamW optimizer with learning rate {lr}")
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, foreach=True)
 
         # Training loop:
         # Perform a num of iterations of forward/backward
         # and optimizations for the sharded module.
+        dataset = WikipediaDataset()
+        self.trainer.fit(dataset=dataset)
         rank_log(self._rank, self.logger, "\nStarting 2D training...")
 
         # seeding with dp_rank to ensure identical inputs for TP groups

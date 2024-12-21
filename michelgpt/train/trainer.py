@@ -52,7 +52,7 @@ class Trainer():
 
         self.max_sequence_length = self.model.max_content
         self.softmax = nn.Softmax(dim=-1)
-        self.loss_function = nn.CrossEntropyLoss(ignore_index=padding_token)
+        self.loss_function = nn.CrossEntropyLoss(ignore_index=padding_token, reduction="sum")
 
         self.device = device
         self.metrics = {
@@ -145,21 +145,22 @@ class Trainer():
         pass
 
     
-    def fit(self, dataset: Dataset, batch_size: int):
+    def fit(self, dataset: Dataset, batch_size: int = 1024):
         self.time = time.time()
 
         train_set = DataLoader(
-            dataset=dataset.trainset,
+            dataset=dataset.dataset,
             batch_size=batch_size,
             shuffle=True
         )
         val_set = DataLoader(
-            dataset.valset,
+            dataset.dataset,
             batch_size=batch_size,
             shuffle=True
         )
 
-        while True:
+        # while True:
+        for _ in range(5):
             losses = []
 
             for _, batch in enumerate(train_set, 0):
@@ -171,7 +172,7 @@ class Trainer():
                 mask = torch.ones_like(batch).to(DEVICE)
 
                 pred = self.model(x=x, mask=mask)
-                loss = self.loss_function(y, pred)
+                loss = self.loss_function(y, pred) / len(x)
 
                 loss.backward()
 
