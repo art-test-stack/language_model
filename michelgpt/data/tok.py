@@ -40,7 +40,7 @@ class TikTokenizer:
     def encode(
             self, 
             text: str,
-            retrieve_splitted_text: bool = True, 
+            retrieve_splitted_text: bool = False, 
             verbose: bool = False
         ):
         token_ids = self.model.encode(text, allowed_special="all")
